@@ -46,6 +46,11 @@
 #include "vk_enum_to_str.h"
 #include "vk_dispatch_table.h"
 #include "vk_util.h"
+#include "map.h"
+
+
+static struct shared *players;
+
 
 /* Mapped from VkInstace/VkPhysicalDevice */
 struct instance_data {
@@ -716,8 +721,9 @@ static void control_client_check(struct device_data *device_data)
    /* Already connected, just return. */
    if (instance_data->control_client >= 0)
       return;
-
+ 
    int socket = os_socket_accept(instance_data->params.control);
+ //int socket = os_socket_listen_abstract("kickflip", 1);
    if (socket == -1) {
       if (errno != EAGAIN && errno != EWOULDBLOCK && errno != ECONNABORTED)
          fprintf(stderr, "ERROR on socket: %s\n", strerror(errno));
@@ -725,6 +731,7 @@ static void control_client_check(struct device_data *device_data)
    }
 
    if (socket >= 0) {
+      
       os_socket_block(socket, false);
       instance_data->control_client = socket;
       control_send_connection_string(device_data);
@@ -760,7 +767,8 @@ static void process_control_socket(struct instance_data *instance_data)
             /* recv() returns 0 when the client disconnects */
             control_client_disconnected(instance_data);
          }
-
+         if(n <= 0)
+           
          for (ssize_t i = 0; i < n; i++) {
             process_char(instance_data, buf[i]);
          }
@@ -783,7 +791,7 @@ static void snapshot_swapchain_frame(struct swapchain_data *data)
    uint32_t f_idx = data->n_frames % ARRAY_SIZE(data->frames_stats);
    uint64_t now = os_time_get(); /* us */
 
-   if (instance_data->params.control >= 0) {
+   if (instance_data->params.control >= 0) { //SOCKET CTL
       control_client_check(device_data);
       process_control_socket(instance_data);
    }
@@ -937,21 +945,29 @@ static void compute_swapchain_display(struct swapchain_data *data)
    ImGui::SetCurrentContext(data->imgui_context);
    ImGui::NewFrame();
    position_layer(data);
-   ImGui::Begin("Mesa overlay");
-   if (instance_data->params.enabled[OVERLAY_PARAM_ENABLED_device])
-      ImGui::Text("Device: %s", device_data->properties.deviceName);
+   ImGui::Begin("Kickflip 2");
+  // if (instance_data->params.enabled[OVERLAY_PARAM_ENABLED_device])
+ //     ImGui::Text("Device: %s", device_data->properties.deviceName);
 
-   if (instance_data->params.enabled[OVERLAY_PARAM_ENABLED_format]) {
+ /* if (instance_data->params.enabled[OVERLAY_PARAM_ENABLED_format]) {
       const char *format_name = vk_Format_to_str(data->format);
       format_name = format_name ? (format_name + strlen("VK_FORMAT_")) : "unknown";
       ImGui::Text("Swapchain format: %s", format_name);
    }
    if (instance_data->params.enabled[OVERLAY_PARAM_ENABLED_frame])
-      ImGui::Text("Frames: %" PRIu64, data->n_frames);
-   if (instance_data->params.enabled[OVERLAY_PARAM_ENABLED_fps])
-      ImGui::Text("FPS: %.2f" , data->fps);
-
-   /* Recompute min/max */
+      ImGui::Text("Frames: %" PRIu64, data->n_frames);*/
+ //  if (instance_data->params.enabled[OVERLAY_PARAM_ENABLED_fps])
+   ImGui::Text("FPS: %.2f" , data->fps);
+   if(players != NULL ) {
+      for(int i = 0; i < 32; i++){
+         if(players->players[i].health >= 0){
+            ImGui::Text("HP: %i" , players->players[i].health);
+         }
+      }
+      
+   }
+/*
+   
    for (uint32_t s = 0; s < OVERLAY_PARAM_ENABLED_MAX; s++) {
       data->stats_min.stats[s] = UINT64_MAX;
       data->stats_max.stats[s] = 0;
@@ -1007,7 +1023,7 @@ static void compute_swapchain_display(struct swapchain_data *data)
                      get_stat(data, ARRAY_SIZE(data->frames_stats) - 1),
                      data->stats_min.stats[s], data->stats_max.stats[s]);
       }
-   }
+   }*/
    data->window_size = ImVec2(data->window_size.x, ImGui::GetCursorPosY() + 10.0f);
    ImGui::End();
    ImGui::EndFrame();
@@ -2626,6 +2642,8 @@ static VkResult overlay_CreateInstance(
                                           instance_data->instance);
    instance_data_map_physical_devices(instance_data, true);
 
+
+   map(&players);
    parse_overlay_env(&instance_data->params, getenv("VK_LAYER_MESA_OVERLAY_CONFIG"));
 
    /* If there's no control file, and an output_file was specified, start
@@ -2634,6 +2652,15 @@ static VkResult overlay_CreateInstance(
    instance_data->capture_enabled =
       instance_data->params.output_file && instance_data->params.control < 0;
    instance_data->capture_started = instance_data->capture_enabled;
+   if (instance_data->params.control < 0)
+   {
+      printf("listening @kickflip");
+      instance_data->params.control = 1;
+      //int err = os_socket_listen_abstract("\0kickflip", 100);
+      int err = 0;
+      if (err < 0)
+         printf("aw fuck");
+   }
 
    for (int i = OVERLAY_PARAM_ENABLED_vertices;
         i <= OVERLAY_PARAM_ENABLED_compute_invocations; i++) {
@@ -2654,6 +2681,7 @@ static void overlay_DestroyInstance(
    instance_data_map_physical_devices(instance_data, false);
    instance_data->vtable.DestroyInstance(instance, pAllocator);
    destroy_instance_data(instance_data);
+   unmap(&players);
 }
 
 static const struct {

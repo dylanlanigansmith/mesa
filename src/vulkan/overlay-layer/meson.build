@@ -32,6 +32,7 @@ endforeach
 vklayer_files = files(
   'overlay.cpp',
   'overlay_params.c',
+  'map.c'
 )
 
 vklayer_mesa_overlay = shared_library(
@@ -46,7 +47,7 @@ vklayer_mesa_overlay = shared_library(
 )
 
 install_data(
-  files('VkLayer_MESA_overlay.json'),
+  files('VkLayer_FLIP_overlay.json'),
   install_dir : join_paths(get_option('datadir'), 'vulkan', 'explicit_layer.d'),
 )
 

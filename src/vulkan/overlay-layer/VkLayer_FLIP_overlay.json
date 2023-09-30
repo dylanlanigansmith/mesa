@@ -1,0 +1,17 @@
+{
+    "file_format_version" : "1.0.0",
+    "layer" : {
+        "name": "VK_LAYER_FLIP_overlay",
+        "type": "GLOBAL",
+        "library_path": "/home/dylan/libflipover.so",
+        "api_version": "1.3.211",
+        "implementation_version": "1",
+        "description": "Flip-overlay Dev.",
+        "disable_environment": { "DISABLE_VK_LAYER_FLIPOVER": "1" },
+        "enable_environment": { "ENABLE_VK_LAYER_FLIPOVER": "1" },
+        "functions": {
+            "vkGetInstanceProcAddr": "vkGetInstanceProcAddr",
+            "vkGetDeviceProcAddr": "vkGetDeviceProcAddr"
+    }
+    }
+}

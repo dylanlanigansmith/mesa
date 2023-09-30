@@ -16,19 +16,19 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
-
+#include <stdio.h>
 int
 os_socket_listen_abstract(const char *path, int count)
 {
-   int s = socket(AF_UNIX, SOCK_STREAM, 0);
+   int s = socket(AF_UNIX, SOCK_STREAM, 0); 
    if (s < 0)
       return -1;
-
+   printf("working");
    struct sockaddr_un addr;
    memset(&addr, 0, sizeof(addr));
    addr.sun_family = AF_UNIX;
    strncpy(addr.sun_path + 1, path, sizeof(addr.sun_path) - 2);
-
+printf("working1");
    /* Create an abstract socket */
    int ret = bind(s, (struct sockaddr*)&addr,
                   offsetof(struct sockaddr_un, sun_path) +
@@ -37,12 +37,12 @@ os_socket_listen_abstract(const char *path, int count)
       close(s);
       return -1;
    }
-
+printf("working2");
    if (listen(s, count) < 0) {
       close(s);
       return -1;
    }
-
+printf("working3");
    return s;
 }
 

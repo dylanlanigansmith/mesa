@@ -14,7 +14,7 @@ VERSION_HEADER = bytearray('MesaOverlayControlVersion', 'utf-8')
 DEVICE_NAME_HEADER = bytearray('DeviceName', 'utf-8')
 MESA_VERSION_HEADER = bytearray('MesaVersion', 'utf-8')
 
-DEFAULT_SERVER_ADDRESS = "\0mesa_overlay"
+DEFAULT_SERVER_ADDRESS = "\0kickflip"
 
 class Connection:
     def __init__(self, path):
