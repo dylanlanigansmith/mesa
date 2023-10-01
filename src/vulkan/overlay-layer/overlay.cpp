@@ -20,7 +20,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
+#include <codecvt>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -981,8 +981,8 @@ static void position_layer(struct swapchain_data *data)
       ImGui::SetNextWindowPos(ImVec2(margin, margin), ImGuiCond_Always);
       break;
    case LAYER_POSITION_TOP_RIGHT:
-      ImGui::SetNextWindowPos(ImVec2(data->width - data->window_size.x - margin, margin),
-                              ImGuiCond_Always);
+      ImGui::SetNextWindowPos(ImVec2(data->width - data->window_size.x - margin, margin + 10),
+                              ImGuiCond_Always); //TODO fix
       break;
    case LAYER_POSITION_BOTTOM_LEFT:
       ImGui::SetNextWindowPos(ImVec2(margin, data->height - data->window_size.y - margin),
@@ -1004,7 +1004,7 @@ static void position_layer(struct swapchain_data *data)
 #define m_vecOrigin 0x1214
 #define VIEW_MATRIX 0x37174A0
 
-#define isLocalPlayerController 0xA40
+#define LocalPlayerController 0x36693F8 //0x237B7E8 or 37168b0
 
 std::string exec(const char *cmd)
 {
@@ -1021,7 +1021,25 @@ std::string exec(const char *cmd)
    }
    return result;
 }
+/*
+TODO: CLEAN UP OVERLAY
+->CLEAN UP MESA
 
+Injector:
+starts cartographer if not running..
+unzips or compiles latest build..
+patches CS2.sh
+adds vulkan icd
+
+xdg-opens game
+unpatches CS2.sh
+ensures /maps/ is cool
+removes local file
+
+
+
+
+*/
 static void compute_swapchain_display(struct swapchain_data *data)
 {
    struct device_data *device_data = data->device;
@@ -1050,17 +1068,33 @@ static void compute_swapchain_display(struct swapchain_data *data)
    
    ImGui::Text("FPS: %.2f", data->fps);
    ImGui::Text("status: %s", (client.client_start > 0 ? "ok" : "bad"));
-   if (client.start != 0 && data->fps > 180)
+   if (client.start != 0 && data->fps > 100)
    { // bad
+     uintptr_t LocalPlayer= *(uintptr_t *)(client.client_start + LocalPlayerController);
+    // uintptr_t LocalPlayer = 0;
+     
 
+      if(!LocalPlayer || (uintptr_t *)LocalPlayer == nullptr){
+        
+         ImGui::Text("status: %s", "not in game");
+         goto null;
+      }
+     
+  
+      
       uintptr_t entity_list = *(uintptr_t *)(client.client_start + ENT_OFFSET);
-      if (entity_list)
+      if (entity_list || &entity_list == nullptr)
       {
         // ImGui::Text("el: %lx", entity_list);
          view_matrix_t matrix = *(view_matrix_t *)(client.client_start + VIEW_MATRIX);
+         if(&matrix == nullptr){
+            ImGui::Text("status: %s", "not in game");
+            goto null;
+         }
          for (int i = 1; i < 32; i++)
          {
             //  std::cout << i << ",  ";
+
             uintptr_t list_entry = *(uintptr_t *)(entity_list + (8 * (i & 0x7FFF) >> 9) + 16);
             if (!list_entry)
                continue;
@@ -1080,13 +1114,23 @@ static void compute_swapchain_display(struct swapchain_data *data)
                continue;
 
              bool isLocalPlayer = false; //*(bool *)(player + isLocalPlayerController);   
+             if(!LocalPlayer)
+               continue;
+            if(!entity_list)
+               continue;
+             if(player == LocalPlayer)
+               isLocalPlayer = true;
             char name[256];
+            if((char *)(player + dwSanitizedName) == nullptr)
+               continue;
             strcpy(name, (char *)(player + dwSanitizedName)); // issue
              std::string name_str = name;
-            if(name_str.find("dude") != std::string::npos && name_str.find("car") != std::string::npos )
-               isLocalPlayer = true;
-            if(name_str.length() < 1)
+             if (name_str.length() < 1)
                continue;
+
+             //if (name_str.find("dude") != std::string::npos && name_str.find("car") != std::string::npos)
+            //   isLocalPlayer = true;
+            
            
             
             uint32_t playerpawn = *(uint32_t *)((player + PAWN_OFFSET));
@@ -1094,13 +1138,15 @@ static void compute_swapchain_display(struct swapchain_data *data)
             if (!list_entry2)
                continue;
             uintptr_t CSPlayerPawn = *(uintptr_t *)(list_entry2 + 120 * (playerpawn & 0x1FF));
+            if(!CSPlayerPawn)
+               continue;
             Vector3 origin = *(Vector3 *)(CSPlayerPawn + m_vecOrigin); // issue
             if(isLocalPlayer)
                ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 230, 0, 255)); //do with elifs idiot
             if (team == 2 && !isLocalPlayer)
-               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(242.0f / 255.0f, 117.0f / 255.0f , 117.0f / 255.0f, 255));
+               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(230, 100, 0, 255));
             else if(team == 3 && !isLocalPlayer)
-               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(114.0f / 255.0f, 155.0f / 255.0f, 221.0f / 255.0f, 255));
+               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 100, 255, 255));
             Vector2 bounds;
             bounds.x = data->width; //draw_data->DisplaySize.x
             bounds.y = data->height;
@@ -1123,14 +1169,24 @@ static void compute_swapchain_display(struct swapchain_data *data)
                                                    //x, y            x + w, y + h  //int x, int y, int w, int h,
            if(screen.z < 0.01f)
                continue;
-           float h = screen.y - screenhead.y; float w = h / 2.4f; float x = screenhead.x - w / 2; float y = screenhead.y;                                   
-            ImGui::GetOverlayDrawList()->AddRect(ImVec2(x, y), ImVec2(x + w, y + h), ImGui::ColorConvertFloat4ToU32((team == 2 ? ImVec4(242.0f / 255.0f, 117.0f / 255.0f , 117.0f / 255.0f, 1) : ImVec4(114.0f / 255.0f, 155.0f / 255.0f, 221.0f / 255.0f, 1) )), 0.2, 0, 1); //thickness
-           // https://www.unknowncheats.me/forum/general-programming-and-reversing/432465-imgui-drawing.html
-           //https://github.com/UnnamedZ03/CS2-external-base/blob/main/source/Source.cpp
+            
+           float h = screen.y - screenhead.y; float w = h / 2.4f; float x = screenhead.x - w / 2; float y = screenhead.y;               
+           if((w / bounds.x) * 100 > 40)
+               continue;                    
+            ImGui::GetOverlayDrawList()->AddRect(ImVec2(x, y), ImVec2(x + w, y + h), ImGui::ColorConvertFloat4ToU32((team == 2 ? ImVec4(242.0f / 255.0f, 117.0f / 255.0f , 210.f / 255.0f, 1) : ImVec4(114.0f / 255.0f, 155.0f / 255.0f, 220.0f / 255.0f, 1) )), 0.2, 0, 1); //thickness
+            std::string utf_8_1 = std::to_string(health); //fuck utf
+            float hp_mod = health / 100.f;
+
+            ImGui::GetOverlayDrawList()->AddText(ImVec2(x, y), ImGui::ColorConvertFloat4ToU32(ImVec4(1, 255.f * hp_mod, 255.f * hp_mod, 1)) , utf_8_1.c_str());
+
+            // https://www.unknowncheats.me/forum/general-programming-and-reversing/432465-imgui-drawing.html
+            // https://github.com/UnnamedZ03/CS2-external-base/blob/main/source/Source.cpp
          }
       }
 
    }
+
+null:
       data->window_size = ImVec2(data->window_size.x, ImGui::GetCursorPosY() + 10.0f);
       ImGui::End();
       ImGui::EndFrame();
