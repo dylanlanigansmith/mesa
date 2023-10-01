@@ -32,7 +32,9 @@ endforeach
 vklayer_files = files(
   'overlay.cpp',
   'overlay_params.c',
-  'map.c'
+  'map.c',
+  'world2screen.cpp',
+  'hack.cpp'
 )
 
 vklayer_mesa_overlay = shared_library(

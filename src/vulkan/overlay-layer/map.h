@@ -19,7 +19,11 @@ extern "C" {
 
 struct Vector3
 {
-  float x, y, z;
+  float x, y, z; //fuck it we get the napkin out
+};
+
+struct Vector2{
+  float x,y;
 };
 struct view_matrix_t
 {
@@ -32,11 +36,17 @@ struct player
   int team;
   char name[128];
 };
-
+enum {
+  RUN = 0,
+  IN_GAME,
+  REQ_SHUTDOWN,
+  SHUTDOWN
+};
 struct shared
 {
   struct player players[32];
   struct view_matrix_t matrix;
+  int state;
 };
 static int fd;
 

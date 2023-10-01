@@ -30,9 +30,11 @@ int map(struct shared **players) {
 
 int unmap(struct shared **players){
     // Cleanup
-    munmap(*players, sizeof(struct shared) * 10);
+    if(!munmap(*players, sizeof(struct shared) * 10))
+		return 1;
 	
-	close(fd);
+	if(!close(fd))
+		return 1;
 
 	return 0;
 }
