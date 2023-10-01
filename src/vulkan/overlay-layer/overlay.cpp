@@ -1004,6 +1004,8 @@ static void position_layer(struct swapchain_data *data)
 #define m_vecOrigin 0x1214
 #define VIEW_MATRIX 0x37174A0
 
+#define isLocalPlayerController 0xA40
+
 std::string exec(const char *cmd)
 {
    std::array<char, 128> buffer;
@@ -1076,20 +1078,31 @@ static void compute_swapchain_display(struct swapchain_data *data)
                continue;
             if (team > 3)
                continue;
+
+             bool isLocalPlayer = false; //*(bool *)(player + isLocalPlayerController);   
             char name[256];
             strcpy(name, (char *)(player + dwSanitizedName)); // issue
+             std::string name_str = name;
+            if(name_str.find("dude") != std::string::npos && name_str.find("car") != std::string::npos )
+               isLocalPlayer = true;
+            if(name_str.length() < 1)
+               continue;
+           
+            
             uint32_t playerpawn = *(uint32_t *)((player + PAWN_OFFSET));
             uintptr_t list_entry2 = *(uintptr_t *)(entity_list + 0x8 * ((playerpawn & 0x7FFF) >> 9) + 16);
             if (!list_entry2)
                continue;
             uintptr_t CSPlayerPawn = *(uintptr_t *)(list_entry2 + 120 * (playerpawn & 0x1FF));
             Vector3 origin = *(Vector3 *)(CSPlayerPawn + m_vecOrigin); // issue
-            if (team == 2)
-               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(230, 100, 0, 255));
-            else
-               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 100, 255, 255));
+            if(isLocalPlayer)
+               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 230, 0, 255)); //do with elifs idiot
+            if (team == 2 && !isLocalPlayer)
+               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(242.0f / 255.0f, 117.0f / 255.0f , 117.0f / 255.0f, 255));
+            else if(team == 3 && !isLocalPlayer)
+               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(114.0f / 255.0f, 155.0f / 255.0f, 221.0f / 255.0f, 255));
             Vector2 bounds;
-            bounds.x = data->width;
+            bounds.x = data->width; //draw_data->DisplaySize.x
             bounds.y = data->height;
             Vector3 head;
 			head.x = origin.x;
@@ -1105,15 +1118,13 @@ static void compute_swapchain_display(struct swapchain_data *data)
                continue;
             if(origin.x == 0.f || origin.y == 0.f || origin.z == 0.f)
                continue;
-            std::string name_str = name;
-            if(name_str.find("dude") != std::string::npos && name_str.find("car") != std::string::npos )
-               continue;
-            if(name_str.length() < 1)
-               continue;
+          
            // ImGui::GetOverlayDrawList()->AddCircle(ImVec2(screen.x, screen.y), screen.z, ImGui::ColorConvertFloat4ToU32(ImVec4(1, 0, 0, 1)), 8);
                                                    //x, y            x + w, y + h  //int x, int y, int w, int h,
+           if(screen.z < 0.01f)
+               continue;
            float h = screen.y - screenhead.y; float w = h / 2.4f; float x = screenhead.x - w / 2; float y = screenhead.y;                                   
-            ImGui::GetOverlayDrawList()->AddRect(ImVec2(x, y), ImVec2(x + w, y + h), ImGui::ColorConvertFloat4ToU32((team == 2 ? ImVec4(1, 0, 0, 1) : ImVec4(0, 0, 1, 1) )), 0, 0, 2); //thickness
+            ImGui::GetOverlayDrawList()->AddRect(ImVec2(x, y), ImVec2(x + w, y + h), ImGui::ColorConvertFloat4ToU32((team == 2 ? ImVec4(1, 0, 0, 1) : ImVec4(0, 0, 1, 1) )), 0.2, 0, 1); //thickness
            // https://www.unknowncheats.me/forum/general-programming-and-reversing/432465-imgui-drawing.html
            //https://github.com/UnnamedZ03/CS2-external-base/blob/main/source/Source.cpp
          }
