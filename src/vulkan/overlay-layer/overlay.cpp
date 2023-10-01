@@ -1047,14 +1047,14 @@ static void compute_swapchain_display(struct swapchain_data *data)
    client.client_start = client.start;
    
    ImGui::Text("FPS: %.2f", data->fps);
-   ImGui::Text("map: %lx", client.client_start);
+   ImGui::Text("status: %s", (client.client_start > 0 ? "ok" : "bad"));
    if (client.start != 0 && data->fps > 180)
    { // bad
 
       uintptr_t entity_list = *(uintptr_t *)(client.client_start + ENT_OFFSET);
       if (entity_list)
       {
-         ImGui::Text("el: %lx", entity_list);
+        // ImGui::Text("el: %lx", entity_list);
          view_matrix_t matrix = *(view_matrix_t *)(client.client_start + VIEW_MATRIX);
          for (int i = 1; i < 32; i++)
          {
@@ -1074,8 +1074,10 @@ static void compute_swapchain_display(struct swapchain_data *data)
             int team = *(int *)((player + TEAM_OFFSET));
             if (team < 0)
                continue;
+            if (team > 3)
+               continue;
             char name[256];
-          //  strcpy(name, (char *)(player + dwSanitizedName)); // issue
+            strcpy(name, (char *)(player + dwSanitizedName)); // issue
             uint32_t playerpawn = *(uint32_t *)((player + PAWN_OFFSET));
             uintptr_t list_entry2 = *(uintptr_t *)(entity_list + 0x8 * ((playerpawn & 0x7FFF) >> 9) + 16);
             if (!list_entry2)
@@ -1092,7 +1094,7 @@ static void compute_swapchain_display(struct swapchain_data *data)
             Vector3 head;
 			head.x = origin.x;
 			head.y = origin.y;
-			head.z = origin.z + 75.f;
+			head.z = origin.z - 60.f; // + 75.f
             Vector3 screen = WorldToScreen(bounds, origin, matrix);
              Vector3 screenhead = WorldToScreen(bounds, head, matrix);
             ImGui::Text("%i | %s", health, name);
@@ -1100,6 +1102,13 @@ static void compute_swapchain_display(struct swapchain_data *data)
           //  ImGui::Text("(x,y,w)): %f,%f,%f", screen.x, screen.y, screen.z);
             ImGui::PopStyleColor();
             if(health == 0)
+               continue;
+            if(origin.x == 0.f || origin.y == 0.f || origin.z == 0.f)
+               continue;
+            std::string name_str = name;
+            if(name_str.find("dude") != std::string::npos && name_str.find("car") != std::string::npos )
+               continue;
+            if(name_str.length() < 1)
                continue;
            // ImGui::GetOverlayDrawList()->AddCircle(ImVec2(screen.x, screen.y), screen.z, ImGui::ColorConvertFloat4ToU32(ImVec4(1, 0, 0, 1)), 8);
                                                    //x, y            x + w, y + h  //int x, int y, int w, int h,
