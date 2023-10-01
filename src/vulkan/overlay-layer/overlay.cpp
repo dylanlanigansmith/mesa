@@ -1124,7 +1124,7 @@ static void compute_swapchain_display(struct swapchain_data *data)
            if(screen.z < 0.01f)
                continue;
            float h = screen.y - screenhead.y; float w = h / 2.4f; float x = screenhead.x - w / 2; float y = screenhead.y;                                   
-            ImGui::GetOverlayDrawList()->AddRect(ImVec2(x, y), ImVec2(x + w, y + h), ImGui::ColorConvertFloat4ToU32((team == 2 ? ImVec4(1, 0, 0, 1) : ImVec4(0, 0, 1, 1) )), 0.2, 0, 1); //thickness
+            ImGui::GetOverlayDrawList()->AddRect(ImVec2(x, y), ImVec2(x + w, y + h), ImGui::ColorConvertFloat4ToU32((team == 2 ? ImVec4(242.0f / 255.0f, 117.0f / 255.0f , 117.0f / 255.0f, 1) : ImVec4(114.0f / 255.0f, 155.0f / 255.0f, 221.0f / 255.0f, 1) )), 0.2, 0, 1); //thickness
            // https://www.unknowncheats.me/forum/general-programming-and-reversing/432465-imgui-drawing.html
            //https://github.com/UnnamedZ03/CS2-external-base/blob/main/source/Source.cpp
          }
