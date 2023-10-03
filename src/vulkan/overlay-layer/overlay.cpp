@@ -982,7 +982,7 @@ static void position_layer(struct swapchain_data *data)
       break;
    case LAYER_POSITION_TOP_RIGHT:
       ImGui::SetNextWindowPos(ImVec2(data->width - data->window_size.x - margin, margin + 10),
-                              ImGuiCond_Always); //TODO fix
+                              ImGuiCond_Always); // TODO fix
       break;
    case LAYER_POSITION_BOTTOM_LEFT:
       ImGui::SetNextWindowPos(ImVec2(margin, data->height - data->window_size.y - margin),
@@ -1004,8 +1004,8 @@ static void position_layer(struct swapchain_data *data)
 #define m_vecOrigin 0x1214
 #define VIEW_MATRIX 0x37174A0
 
-#define LocalPlayerController 0x36693F8 //0x237B7E8 or 37168b0
-
+#define LocalPlayerController 0x36693F8 // 0x237B7E8 or 37168b0
+#define isDefusing 0x1330 
 std::string exec(const char *cmd)
 {
    std::array<char, 128> buffer;
@@ -1048,7 +1048,7 @@ static void compute_swapchain_display(struct swapchain_data *data)
    ImGui::SetCurrentContext(data->imgui_context);
    ImGui::NewFrame();
    position_layer(data);
-   ImGui::Begin("Kickflip 2");
+   ImGui::Begin("Kickflip 2.0.5");
    if (client.start == 0)
    {
 
@@ -1065,333 +1065,522 @@ static void compute_swapchain_display(struct swapchain_data *data)
       }
    }
    client.client_start = client.start;
+
+   ImGui::Text("FPS: %i", int(data->fps));
    
-   ImGui::Text("FPS: %.2f", data->fps);
    ImGui::Text("status: %s", (client.client_start > 0 ? "ok" : "bad"));
    if (client.start != 0 && data->fps > 100)
    { // bad
-     uintptr_t LocalPlayer= *(uintptr_t *)(client.client_start + LocalPlayerController);
-    // uintptr_t LocalPlayer = 0;
-     
+      uintptr_t LocalPlayer = *(uintptr_t *)(client.client_start + LocalPlayerController);
+      // uintptr_t LocalPlayer = 0;
 
-      if(!LocalPlayer || (uintptr_t *)LocalPlayer == nullptr){
-        
-         ImGui::Text("status: %s", "not in game");
+      if (!LocalPlayer )
+      {
+
+         ImGui::Text("loading...");
          goto null;
       }
-     
-  
-      
+
       uintptr_t entity_list = *(uintptr_t *)(client.client_start + ENT_OFFSET);
-      if (entity_list || &entity_list == nullptr)
+      if (entity_list)
       {
-        // ImGui::Text("el: %lx", entity_list);
+       
          view_matrix_t matrix = *(view_matrix_t *)(client.client_start + VIEW_MATRIX);
-         if(&matrix == nullptr){
-            ImGui::Text("status: %s", "not in game");
-            goto null;
-         }
          for (int i = 1; i < 32; i++)
          {
             //  std::cout << i << ",  ";
-
+            LocalPlayer = *(uintptr_t *)(client.client_start + LocalPlayerController);
+            if(!LocalPlayer)
+               continue;
+             
             uintptr_t list_entry = *(uintptr_t *)(entity_list + (8 * (i & 0x7FFF) >> 9) + 16);
             if (!list_entry)
                continue;
             uintptr_t player = *(uintptr_t *)(list_entry + 120 * (i & 0x1FF));
             if (!player)
                continue;
-            int health = *(int *)((player + HEALTH_OFFSET));
-            if (!(0 <= health <= 100)) // bad
-               continue;
-            
+            // if(player == LocalPlayer)
+            //  continue;
 
+            int health = *(int *)((player + HEALTH_OFFSET));
+           
+            // int health = *(int *)((player + HEALTH_OFFSET));
+            if (!(health >= 0) || (health > 100)) // bad
+               continue;
+            //
+            // int localteam = *(int *)((LocalPlayer + TEAM_OFFSET));
+
+            // if(localteam != 2 || localteam != 3)
+            //    continue;
 
             int team = *(int *)((player + TEAM_OFFSET));
-            if (team < 0)
+           
+             if (team < 0)
                continue;
             if (team > 3)
                continue;
-
-             bool isLocalPlayer = false; //*(bool *)(player + isLocalPlayerController);   
-             if(!LocalPlayer)
+            bool isLocalPlayer = false; //*(bool *)(player + isLocalPlayerController);
+            if (!LocalPlayer)
                continue;
-            if(!entity_list)
+            if (!entity_list)
                continue;
-             if(player == LocalPlayer)
-               isLocalPlayer = true;
+            if (player == LocalPlayer)
+               continue;
+             
             char name[256];
-            if((char *)(player + dwSanitizedName) == nullptr)
+            if ((char *)(player + dwSanitizedName) == nullptr)
                continue;
-            strcpy(name, (char *)(player + dwSanitizedName)); // issue
-             std::string name_str = name;
-             if (name_str.length() < 1)
-               continue;
-
-             //if (name_str.find("dude") != std::string::npos && name_str.find("car") != std::string::npos)
-            //   isLocalPlayer = true;
-            
+            //name = (char*)(player + dwSanitizedName);
+           // memcpy(name, (char *)(player + dwSanitizedName), sizeof(char) * 256); // issue
+            //std::string name_str = name;
+            //if (name_str.length() < 1)
+              // continue;
            
             
+
+            
+
+            // if (name_str.find("dude") != std::string::npos && name_str.find("car") != std::string::npos)
+            //   isLocalPlayer = true;
+
             uint32_t playerpawn = *(uint32_t *)((player + PAWN_OFFSET));
+            
             uintptr_t list_entry2 = *(uintptr_t *)(entity_list + 0x8 * ((playerpawn & 0x7FFF) >> 9) + 16);
             if (!list_entry2)
                continue;
             uintptr_t CSPlayerPawn = *(uintptr_t *)(list_entry2 + 120 * (playerpawn & 0x1FF));
-            if(!CSPlayerPawn)
+            if (!CSPlayerPawn)
                continue;
-            Vector3 origin = *(Vector3 *)(CSPlayerPawn + m_vecOrigin); // issue
-            if(isLocalPlayer)
-               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 230, 0, 255)); //do with elifs idiot
+
+             /*  
+             if (isLocalPlayer)
+               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 230, 0, 255)); // do with elifs idiot
             if (team == 2 && !isLocalPlayer)
                ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(230, 100, 0, 255));
-            else if(team == 3 && !isLocalPlayer)
+            else if (team == 3 && !isLocalPlayer)
                ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 100, 255, 255));
+            ImGui::Text("%i | %s", health, "E");
+            ImGui::PopStyleColor(); */
+           
+            if (health == 0)
+               continue;
+            uint8_t is_defusing = 0;   
+            if(team == 3 && CSPlayerPawn){
+               is_defusing = *(uint8_t*)(CSPlayerPawn + isDefusing); 
+            }
+         //   if (CSPlayerPawn == LocalPlayer)
+             //  continue;
+            Vector3 origin = *(Vector3 *)(CSPlayerPawn + m_vecOrigin); // issue
+            if (origin.x == 0.f || origin.y == 0.f || origin.z == 0.f)
+               continue;
+
+           
             Vector2 bounds;
-            bounds.x = data->width; //draw_data->DisplaySize.x
+            bounds.x = data->width; // draw_data->DisplaySize.x
             bounds.y = data->height;
             Vector3 head;
-			head.x = origin.x;
-			head.y = origin.y;
-			head.z = origin.z - 60.f; // + 75.f
+            head.x = origin.x;
+            head.y = origin.y;
+            head.z = origin.z - 60.f; // + 75.f
             Vector3 screen = WorldToScreen(bounds, origin, matrix);
-             Vector3 screenhead = WorldToScreen(bounds, head, matrix);
-            ImGui::Text("%i | %s", health, name);
-           // ImGui::Text("(x,y,z)): %f,%f,%f", origin.x, origin.y, origin.z);
-          //  ImGui::Text("(x,y,w)): %f,%f,%f", screen.x, screen.y, screen.z);
-            ImGui::PopStyleColor();
-            if(health == 0)
-               continue;
-            if(origin.x == 0.f || origin.y == 0.f || origin.z == 0.f)
-               continue;
-          
-           // ImGui::GetOverlayDrawList()->AddCircle(ImVec2(screen.x, screen.y), screen.z, ImGui::ColorConvertFloat4ToU32(ImVec4(1, 0, 0, 1)), 8);
-                                                   //x, y            x + w, y + h  //int x, int y, int w, int h,
-           if(screen.z < 0.01f)
-               continue;
-            
-           float h = screen.y - screenhead.y; float w = h / 2.4f; float x = screenhead.x - w / 2; float y = screenhead.y;               
-           if((w / bounds.x) * 100 > 40)
-               continue;                    
-            ImGui::GetOverlayDrawList()->AddRect(ImVec2(x, y), ImVec2(x + w, y + h), ImGui::ColorConvertFloat4ToU32((team == 2 ? ImVec4(242.0f / 255.0f, 117.0f / 255.0f , 210.f / 255.0f, 1) : ImVec4(114.0f / 255.0f, 155.0f / 255.0f, 220.0f / 255.0f, 1) )), 0.2, 0, 1); //thickness
-            std::string utf_8_1 = std::to_string(health); //fuck utf
-            float hp_mod = health / 100.f;
+            Vector3 screenhead = WorldToScreen(bounds, head, matrix);
 
-            ImGui::GetOverlayDrawList()->AddText(ImVec2(x, y), ImGui::ColorConvertFloat4ToU32(ImVec4(1, 255.f * hp_mod, 255.f * hp_mod, 1)) , utf_8_1.c_str());
+            // ImGui::Text("(x,y,z)): %f,%f,%f", origin.x, origin.y, origin.z);
+            //  ImGui::Text("(x,y,w)): %f,%f,%f", screen.x, screen.y, screen.z);
+            LocalPlayer = *(uintptr_t *)(client.client_start + LocalPlayerController);
+            if(!LocalPlayer)
+               continue;
+            int local_health = *(int *)((LocalPlayer + HEALTH_OFFSET));
+            int local_team = *(int *)((LocalPlayer + TEAM_OFFSET));
+            
+            if(local_health == 0 && team == local_team)
+               continue;
+            // ImGui::GetOverlayDrawList()->AddCircle(ImVec2(screen.x, screen.y), screen.z, ImGui::ColorConvertFloat4ToU32(ImVec4(1, 0, 0, 1)), 8);
+            // x, y            x + w, y + h  //int x, int y, int w, int h,
+            if (screen.z < 0.01f)
+               continue;
+
+            float h = screen.y - screenhead.y;
+            float w = h / 2.4f;
+            float x = screenhead.x - w / 2;
+            float y = screenhead.y;
+            if (w > (0.4f * bounds.x))
+               continue;
+           
+            if( ((y + y + h) < 5) )
+               continue;
+            ImVec4 box_color =  ImVec4(1,1,1,1);
+            if(team == 3 && is_defusing)
+               box_color = ImVec4(1, 100.f / 255.0f, 0, 1);
+            else if (team == 3 && !is_defusing)
+             box_color = ImVec4(114.0f / 255.0f, 200.0f / 255.0f, 220.0f / 255.0f, 1); //155
+            else if(team == 2)
+               box_color = ImVec4(242.0f / 255.0f, 117.0f / 255.0f, 210.f / 255.0f, 1);
+            ImGui::GetOverlayDrawList()->AddRect(ImVec2(x, y), ImVec2(x + w, y + h), ImGui::ColorConvertFloat4ToU32(box_color), 0.2, 0, 1); // thickness
+
+            std::string utf_8_1 = std::to_string(health); // fuck utf
+            float hp_mod = health * 2.25f;
+
+            ImGui::GetOverlayDrawList()->AddText(ImVec2(x, y), ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, 1)), utf_8_1.c_str());
 
             // https://www.unknowncheats.me/forum/general-programming-and-reversing/432465-imgui-drawing.html
             // https://github.com/UnnamedZ03/CS2-external-base/blob/main/source/Source.cpp
          }
       }
-
    }
-
+goto null;
 null:
-      data->window_size = ImVec2(data->window_size.x, ImGui::GetCursorPosY() + 10.0f);
-      ImGui::End();
-      ImGui::EndFrame();
-      ImGui::Render();
+   data->window_size = ImVec2(data->window_size.x, ImGui::GetCursorPosY() + 10.0f);
+   ImGui::End();
+   ImGui::EndFrame();
+   ImGui::Render();
 }
 
-   static uint32_t vk_memory_type(struct device_data * data,
-                                  VkMemoryPropertyFlags properties,
-                                  uint32_t type_bits)
+static uint32_t vk_memory_type(struct device_data *data,
+                               VkMemoryPropertyFlags properties,
+                               uint32_t type_bits)
+{
+   VkPhysicalDeviceMemoryProperties prop;
+   data->instance->pd_vtable.GetPhysicalDeviceMemoryProperties(data->physical_device, &prop);
+   for (uint32_t i = 0; i < prop.memoryTypeCount; i++)
+      if ((prop.memoryTypes[i].propertyFlags & properties) == properties && type_bits & (1 << i))
+         return i;
+   return 0xFFFFFFFF; // Unable to find memoryType
+}
+
+static void ensure_swapchain_fonts(struct swapchain_data *data,
+                                   VkCommandBuffer command_buffer)
+{
+   if (data->font_uploaded)
+      return;
+
+   data->font_uploaded = true;
+
+   struct device_data *device_data = data->device;
+   ImGuiIO &io = ImGui::GetIO();
+   unsigned char *pixels;
+   int width, height;
+   io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+   size_t upload_size = width * height * 4 * sizeof(char);
+
+   /* Upload buffer */
+   VkBufferCreateInfo buffer_info = {};
+   buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+   buffer_info.size = upload_size;
+   buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+   buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+   VK_CHECK(device_data->vtable.CreateBuffer(device_data->device, &buffer_info,
+                                             NULL, &data->upload_font_buffer));
+   VkMemoryRequirements upload_buffer_req;
+   device_data->vtable.GetBufferMemoryRequirements(device_data->device,
+                                                   data->upload_font_buffer,
+                                                   &upload_buffer_req);
+   VkMemoryAllocateInfo upload_alloc_info = {};
+   upload_alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+   upload_alloc_info.allocationSize = upload_buffer_req.size;
+   upload_alloc_info.memoryTypeIndex = vk_memory_type(device_data,
+                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                                                      upload_buffer_req.memoryTypeBits);
+   VK_CHECK(device_data->vtable.AllocateMemory(device_data->device,
+                                               &upload_alloc_info,
+                                               NULL,
+                                               &data->upload_font_buffer_mem));
+   VK_CHECK(device_data->vtable.BindBufferMemory(device_data->device,
+                                                 data->upload_font_buffer,
+                                                 data->upload_font_buffer_mem, 0));
+
+   /* Upload to Buffer */
+   char *map = NULL;
+   VK_CHECK(device_data->vtable.MapMemory(device_data->device,
+                                          data->upload_font_buffer_mem,
+                                          0, upload_size, 0, (void **)(&map)));
+   memcpy(map, pixels, upload_size);
+   VkMappedMemoryRange range[1] = {};
+   range[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+   range[0].memory = data->upload_font_buffer_mem;
+   range[0].size = upload_size;
+   VK_CHECK(device_data->vtable.FlushMappedMemoryRanges(device_data->device, 1, range));
+   device_data->vtable.UnmapMemory(device_data->device,
+                                   data->upload_font_buffer_mem);
+
+   /* Copy buffer to image */
+   VkImageMemoryBarrier copy_barrier[1] = {};
+   copy_barrier[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+   copy_barrier[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+   copy_barrier[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+   copy_barrier[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+   copy_barrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+   copy_barrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+   copy_barrier[0].image = data->font_image;
+   copy_barrier[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+   copy_barrier[0].subresourceRange.levelCount = 1;
+   copy_barrier[0].subresourceRange.layerCount = 1;
+   device_data->vtable.CmdPipelineBarrier(command_buffer,
+                                          VK_PIPELINE_STAGE_HOST_BIT,
+                                          VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                          0, 0, NULL, 0, NULL,
+                                          1, copy_barrier);
+
+   VkBufferImageCopy region = {};
+   region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+   region.imageSubresource.layerCount = 1;
+   region.imageExtent.width = width;
+   region.imageExtent.height = height;
+   region.imageExtent.depth = 1;
+   device_data->vtable.CmdCopyBufferToImage(command_buffer,
+                                            data->upload_font_buffer,
+                                            data->font_image,
+                                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                            1, &region);
+
+   VkImageMemoryBarrier use_barrier[1] = {};
+   use_barrier[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+   use_barrier[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+   use_barrier[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+   use_barrier[0].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+   use_barrier[0].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+   use_barrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+   use_barrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+   use_barrier[0].image = data->font_image;
+   use_barrier[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+   use_barrier[0].subresourceRange.levelCount = 1;
+   use_barrier[0].subresourceRange.layerCount = 1;
+   device_data->vtable.CmdPipelineBarrier(command_buffer,
+                                          VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                          0,
+                                          0, NULL,
+                                          0, NULL,
+                                          1, use_barrier);
+
+   /* Store our identifier */
+   io.Fonts->TexID = (ImTextureID)(intptr_t)data->font_image;
+}
+
+static void CreateOrResizeBuffer(struct device_data *data,
+                                 VkBuffer *buffer,
+                                 VkDeviceMemory *buffer_memory,
+                                 VkDeviceSize *buffer_size,
+                                 size_t new_size, VkBufferUsageFlagBits usage)
+{
+   if (*buffer != VK_NULL_HANDLE)
+      data->vtable.DestroyBuffer(data->device, *buffer, NULL);
+   if (*buffer_memory)
+      data->vtable.FreeMemory(data->device, *buffer_memory, NULL);
+
+   VkBufferCreateInfo buffer_info = {};
+   buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+   buffer_info.size = new_size;
+   buffer_info.usage = usage;
+   buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+   VK_CHECK(data->vtable.CreateBuffer(data->device, &buffer_info, NULL, buffer));
+
+   VkMemoryRequirements req;
+   data->vtable.GetBufferMemoryRequirements(data->device, *buffer, &req);
+   VkMemoryAllocateInfo alloc_info = {};
+   alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+   alloc_info.allocationSize = req.size;
+   alloc_info.memoryTypeIndex =
+       vk_memory_type(data, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, req.memoryTypeBits);
+   VK_CHECK(data->vtable.AllocateMemory(data->device, &alloc_info, NULL, buffer_memory));
+
+   VK_CHECK(data->vtable.BindBufferMemory(data->device, *buffer, *buffer_memory, 0));
+   *buffer_size = new_size;
+}
+
+static struct overlay_draw *render_swapchain_display(struct swapchain_data *data,
+                                                     struct queue_data *present_queue,
+                                                     const VkSemaphore *wait_semaphores,
+                                                     unsigned n_wait_semaphores,
+                                                     unsigned image_index)
+{
+   ImDrawData *draw_data = ImGui::GetDrawData();
+   if (draw_data->TotalVtxCount == 0)
+      return NULL;
+
+   struct device_data *device_data = data->device;
+   struct overlay_draw *draw = get_overlay_draw(data);
+
+   device_data->vtable.ResetCommandBuffer(draw->command_buffer, 0);
+
+   VkRenderPassBeginInfo render_pass_info = {};
+   render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+   render_pass_info.renderPass = data->render_pass;
+   render_pass_info.framebuffer = data->framebuffers[image_index];
+   render_pass_info.renderArea.extent.width = data->width;
+   render_pass_info.renderArea.extent.height = data->height;
+
+   VkCommandBufferBeginInfo buffer_begin_info = {};
+   buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+   device_data->vtable.BeginCommandBuffer(draw->command_buffer, &buffer_begin_info);
+
+   ensure_swapchain_fonts(data, draw->command_buffer);
+
+   /* Bounce the image to display back to color attachment layout for
+    * rendering on top of it.
+    */
+   VkImageMemoryBarrier imb;
+   imb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+   imb.pNext = nullptr;
+   imb.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+   imb.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+   imb.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+   imb.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+   imb.image = data->images[image_index];
+   imb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+   imb.subresourceRange.baseMipLevel = 0;
+   imb.subresourceRange.levelCount = 1;
+   imb.subresourceRange.baseArrayLayer = 0;
+   imb.subresourceRange.layerCount = 1;
+   imb.srcQueueFamilyIndex = present_queue->family_index;
+   imb.dstQueueFamilyIndex = device_data->graphic_queue->family_index;
+   device_data->vtable.CmdPipelineBarrier(draw->command_buffer,
+                                          VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                                          VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                                          0,          /* dependency flags */
+                                          0, nullptr, /* memory barriers */
+                                          0, nullptr, /* buffer memory barriers */
+                                          1, &imb);   /* image memory barriers */
+
+   device_data->vtable.CmdBeginRenderPass(draw->command_buffer, &render_pass_info,
+                                          VK_SUBPASS_CONTENTS_INLINE);
+
+   /* Create/Resize vertex & index buffers */
+   size_t vertex_size = ALIGN(draw_data->TotalVtxCount * sizeof(ImDrawVert), device_data->properties.limits.nonCoherentAtomSize);
+   size_t index_size = ALIGN(draw_data->TotalIdxCount * sizeof(ImDrawIdx), device_data->properties.limits.nonCoherentAtomSize);
+   if (draw->vertex_buffer_size < vertex_size)
    {
-      VkPhysicalDeviceMemoryProperties prop;
-      data->instance->pd_vtable.GetPhysicalDeviceMemoryProperties(data->physical_device, &prop);
-      for (uint32_t i = 0; i < prop.memoryTypeCount; i++)
-         if ((prop.memoryTypes[i].propertyFlags & properties) == properties && type_bits & (1 << i))
-            return i;
-      return 0xFFFFFFFF; // Unable to find memoryType
+      CreateOrResizeBuffer(device_data,
+                           &draw->vertex_buffer,
+                           &draw->vertex_buffer_mem,
+                           &draw->vertex_buffer_size,
+                           vertex_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+   }
+   if (draw->index_buffer_size < index_size)
+   {
+      CreateOrResizeBuffer(device_data,
+                           &draw->index_buffer,
+                           &draw->index_buffer_mem,
+                           &draw->index_buffer_size,
+                           index_size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
    }
 
-   static void ensure_swapchain_fonts(struct swapchain_data * data,
-                                      VkCommandBuffer command_buffer)
+   /* Upload vertex & index data */
+   ImDrawVert *vtx_dst = NULL;
+   ImDrawIdx *idx_dst = NULL;
+   VK_CHECK(device_data->vtable.MapMemory(device_data->device, draw->vertex_buffer_mem,
+                                          0, vertex_size, 0, (void **)(&vtx_dst)));
+   VK_CHECK(device_data->vtable.MapMemory(device_data->device, draw->index_buffer_mem,
+                                          0, index_size, 0, (void **)(&idx_dst)));
+   for (int n = 0; n < draw_data->CmdListsCount; n++)
    {
-      if (data->font_uploaded)
-         return;
+      const ImDrawList *cmd_list = draw_data->CmdLists[n];
+      memcpy(vtx_dst, cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
+      memcpy(idx_dst, cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
+      vtx_dst += cmd_list->VtxBuffer.Size;
+      idx_dst += cmd_list->IdxBuffer.Size;
+   }
+   VkMappedMemoryRange range[2] = {};
+   range[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+   range[0].memory = draw->vertex_buffer_mem;
+   range[0].size = VK_WHOLE_SIZE;
+   range[1].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+   range[1].memory = draw->index_buffer_mem;
+   range[1].size = VK_WHOLE_SIZE;
+   VK_CHECK(device_data->vtable.FlushMappedMemoryRanges(device_data->device, 2, range));
+   device_data->vtable.UnmapMemory(device_data->device, draw->vertex_buffer_mem);
+   device_data->vtable.UnmapMemory(device_data->device, draw->index_buffer_mem);
 
-      data->font_uploaded = true;
+   /* Bind pipeline and descriptor sets */
+   device_data->vtable.CmdBindPipeline(draw->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, data->pipeline);
+   VkDescriptorSet desc_set[1] = {data->descriptor_set};
+   device_data->vtable.CmdBindDescriptorSets(draw->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                             data->pipeline_layout, 0, 1, desc_set, 0, NULL);
 
-      struct device_data *device_data = data->device;
-      ImGuiIO &io = ImGui::GetIO();
-      unsigned char *pixels;
-      int width, height;
-      io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-      size_t upload_size = width * height * 4 * sizeof(char);
+   /* Bind vertex & index buffers */
+   VkBuffer vertex_buffers[1] = {draw->vertex_buffer};
+   VkDeviceSize vertex_offset[1] = {0};
+   device_data->vtable.CmdBindVertexBuffers(draw->command_buffer, 0, 1, vertex_buffers, vertex_offset);
+   device_data->vtable.CmdBindIndexBuffer(draw->command_buffer, draw->index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-      /* Upload buffer */
-      VkBufferCreateInfo buffer_info = {};
-      buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-      buffer_info.size = upload_size;
-      buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-      buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      VK_CHECK(device_data->vtable.CreateBuffer(device_data->device, &buffer_info,
-                                                NULL, &data->upload_font_buffer));
-      VkMemoryRequirements upload_buffer_req;
-      device_data->vtable.GetBufferMemoryRequirements(device_data->device,
-                                                      data->upload_font_buffer,
-                                                      &upload_buffer_req);
-      VkMemoryAllocateInfo upload_alloc_info = {};
-      upload_alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-      upload_alloc_info.allocationSize = upload_buffer_req.size;
-      upload_alloc_info.memoryTypeIndex = vk_memory_type(device_data,
-                                                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                                                         upload_buffer_req.memoryTypeBits);
-      VK_CHECK(device_data->vtable.AllocateMemory(device_data->device,
-                                                  &upload_alloc_info,
-                                                  NULL,
-                                                  &data->upload_font_buffer_mem));
-      VK_CHECK(device_data->vtable.BindBufferMemory(device_data->device,
-                                                    data->upload_font_buffer,
-                                                    data->upload_font_buffer_mem, 0));
+   /* Setup viewport */
+   VkViewport viewport;
+   viewport.x = 0;
+   viewport.y = 0;
+   viewport.width = draw_data->DisplaySize.x;
+   viewport.height = draw_data->DisplaySize.y;
+   viewport.minDepth = 0.0f;
+   viewport.maxDepth = 1.0f;
+   device_data->vtable.CmdSetViewport(draw->command_buffer, 0, 1, &viewport);
 
-      /* Upload to Buffer */
-      char *map = NULL;
-      VK_CHECK(device_data->vtable.MapMemory(device_data->device,
-                                             data->upload_font_buffer_mem,
-                                             0, upload_size, 0, (void **)(&map)));
-      memcpy(map, pixels, upload_size);
-      VkMappedMemoryRange range[1] = {};
-      range[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-      range[0].memory = data->upload_font_buffer_mem;
-      range[0].size = upload_size;
-      VK_CHECK(device_data->vtable.FlushMappedMemoryRanges(device_data->device, 1, range));
-      device_data->vtable.UnmapMemory(device_data->device,
-                                      data->upload_font_buffer_mem);
+   /* Setup scale and translation through push constants :
+    *
+    * Our visible imgui space lies from draw_data->DisplayPos (top left) to
+    * draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayMin
+    * is typically (0,0) for single viewport apps.
+    */
+   float scale[2];
+   scale[0] = 2.0f / draw_data->DisplaySize.x;
+   scale[1] = 2.0f / draw_data->DisplaySize.y;
+   float translate[2];
+   translate[0] = -1.0f - draw_data->DisplayPos.x * scale[0];
+   translate[1] = -1.0f - draw_data->DisplayPos.y * scale[1];
+   device_data->vtable.CmdPushConstants(draw->command_buffer, data->pipeline_layout,
+                                        VK_SHADER_STAGE_VERTEX_BIT,
+                                        sizeof(float) * 0, sizeof(float) * 2, scale);
+   device_data->vtable.CmdPushConstants(draw->command_buffer, data->pipeline_layout,
+                                        VK_SHADER_STAGE_VERTEX_BIT,
+                                        sizeof(float) * 2, sizeof(float) * 2, translate);
 
-      /* Copy buffer to image */
-      VkImageMemoryBarrier copy_barrier[1] = {};
-      copy_barrier[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-      copy_barrier[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-      copy_barrier[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-      copy_barrier[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-      copy_barrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      copy_barrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      copy_barrier[0].image = data->font_image;
-      copy_barrier[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      copy_barrier[0].subresourceRange.levelCount = 1;
-      copy_barrier[0].subresourceRange.layerCount = 1;
-      device_data->vtable.CmdPipelineBarrier(command_buffer,
-                                             VK_PIPELINE_STAGE_HOST_BIT,
-                                             VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                             0, 0, NULL, 0, NULL,
-                                             1, copy_barrier);
+   // Render the command lists:
+   int vtx_offset = 0;
+   int idx_offset = 0;
+   ImVec2 display_pos = draw_data->DisplayPos;
+   for (int n = 0; n < draw_data->CmdListsCount; n++)
+   {
+      const ImDrawList *cmd_list = draw_data->CmdLists[n];
+      for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
+      {
+         const ImDrawCmd *pcmd = &cmd_list->CmdBuffer[cmd_i];
+         // Apply scissor/clipping rectangle
+         // FIXME: We could clamp width/height based on clamped min/max values.
+         VkRect2D scissor;
+         scissor.offset.x = (int32_t)(pcmd->ClipRect.x - display_pos.x) > 0 ? (int32_t)(pcmd->ClipRect.x - display_pos.x) : 0;
+         scissor.offset.y = (int32_t)(pcmd->ClipRect.y - display_pos.y) > 0 ? (int32_t)(pcmd->ClipRect.y - display_pos.y) : 0;
+         scissor.extent.width = (uint32_t)(pcmd->ClipRect.z - pcmd->ClipRect.x);
+         scissor.extent.height = (uint32_t)(pcmd->ClipRect.w - pcmd->ClipRect.y + 1); // FIXME: Why +1 here?
+         device_data->vtable.CmdSetScissor(draw->command_buffer, 0, 1, &scissor);
 
-      VkBufferImageCopy region = {};
-      region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      region.imageSubresource.layerCount = 1;
-      region.imageExtent.width = width;
-      region.imageExtent.height = height;
-      region.imageExtent.depth = 1;
-      device_data->vtable.CmdCopyBufferToImage(command_buffer,
-                                               data->upload_font_buffer,
-                                               data->font_image,
-                                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                               1, &region);
+         // Draw
+         device_data->vtable.CmdDrawIndexed(draw->command_buffer, pcmd->ElemCount, 1, idx_offset, vtx_offset, 0);
 
-      VkImageMemoryBarrier use_barrier[1] = {};
-      use_barrier[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-      use_barrier[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-      use_barrier[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-      use_barrier[0].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-      use_barrier[0].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-      use_barrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      use_barrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      use_barrier[0].image = data->font_image;
-      use_barrier[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      use_barrier[0].subresourceRange.levelCount = 1;
-      use_barrier[0].subresourceRange.layerCount = 1;
-      device_data->vtable.CmdPipelineBarrier(command_buffer,
-                                             VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                                             0,
-                                             0, NULL,
-                                             0, NULL,
-                                             1, use_barrier);
-
-      /* Store our identifier */
-      io.Fonts->TexID = (ImTextureID)(intptr_t)data->font_image;
+         idx_offset += pcmd->ElemCount;
+      }
+      vtx_offset += cmd_list->VtxBuffer.Size;
    }
 
-   static void CreateOrResizeBuffer(struct device_data * data,
-                                    VkBuffer * buffer,
-                                    VkDeviceMemory * buffer_memory,
-                                    VkDeviceSize * buffer_size,
-                                    size_t new_size, VkBufferUsageFlagBits usage)
+   device_data->vtable.CmdEndRenderPass(draw->command_buffer);
+
+   if (device_data->graphic_queue->family_index != present_queue->family_index)
    {
-      if (*buffer != VK_NULL_HANDLE)
-         data->vtable.DestroyBuffer(data->device, *buffer, NULL);
-      if (*buffer_memory)
-         data->vtable.FreeMemory(data->device, *buffer_memory, NULL);
-
-      VkBufferCreateInfo buffer_info = {};
-      buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-      buffer_info.size = new_size;
-      buffer_info.usage = usage;
-      buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      VK_CHECK(data->vtable.CreateBuffer(data->device, &buffer_info, NULL, buffer));
-
-      VkMemoryRequirements req;
-      data->vtable.GetBufferMemoryRequirements(data->device, *buffer, &req);
-      VkMemoryAllocateInfo alloc_info = {};
-      alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-      alloc_info.allocationSize = req.size;
-      alloc_info.memoryTypeIndex =
-          vk_memory_type(data, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, req.memoryTypeBits);
-      VK_CHECK(data->vtable.AllocateMemory(data->device, &alloc_info, NULL, buffer_memory));
-
-      VK_CHECK(data->vtable.BindBufferMemory(data->device, *buffer, *buffer_memory, 0));
-      *buffer_size = new_size;
-   }
-
-   static struct overlay_draw *render_swapchain_display(struct swapchain_data * data,
-                                                        struct queue_data * present_queue,
-                                                        const VkSemaphore *wait_semaphores,
-                                                        unsigned n_wait_semaphores,
-                                                        unsigned image_index)
-   {
-      ImDrawData *draw_data = ImGui::GetDrawData();
-      if (draw_data->TotalVtxCount == 0)
-         return NULL;
-
-      struct device_data *device_data = data->device;
-      struct overlay_draw *draw = get_overlay_draw(data);
-
-      device_data->vtable.ResetCommandBuffer(draw->command_buffer, 0);
-
-      VkRenderPassBeginInfo render_pass_info = {};
-      render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-      render_pass_info.renderPass = data->render_pass;
-      render_pass_info.framebuffer = data->framebuffers[image_index];
-      render_pass_info.renderArea.extent.width = data->width;
-      render_pass_info.renderArea.extent.height = data->height;
-
-      VkCommandBufferBeginInfo buffer_begin_info = {};
-      buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-      device_data->vtable.BeginCommandBuffer(draw->command_buffer, &buffer_begin_info);
-
-      ensure_swapchain_fonts(data, draw->command_buffer);
-
-      /* Bounce the image to display back to color attachment layout for
-       * rendering on top of it.
+      /* Transfer the image back to the present queue family
+       * image layout was already changed to present by the render pass
        */
-      VkImageMemoryBarrier imb;
       imb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
       imb.pNext = nullptr;
       imb.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
       imb.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
       imb.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-      imb.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+      imb.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
       imb.image = data->images[image_index];
       imb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
       imb.subresourceRange.baseMipLevel = 0;
       imb.subresourceRange.levelCount = 1;
       imb.subresourceRange.baseArrayLayer = 0;
       imb.subresourceRange.layerCount = 1;
-      imb.srcQueueFamilyIndex = present_queue->family_index;
-      imb.dstQueueFamilyIndex = device_data->graphic_queue->family_index;
+      imb.srcQueueFamilyIndex = device_data->graphic_queue->family_index;
+      imb.dstQueueFamilyIndex = present_queue->family_index;
       device_data->vtable.CmdPipelineBarrier(draw->command_buffer,
                                              VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
                                              VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
@@ -1399,1624 +1588,1479 @@ null:
                                              0, nullptr, /* memory barriers */
                                              0, nullptr, /* buffer memory barriers */
                                              1, &imb);   /* image memory barriers */
-
-      device_data->vtable.CmdBeginRenderPass(draw->command_buffer, &render_pass_info,
-                                             VK_SUBPASS_CONTENTS_INLINE);
-
-      /* Create/Resize vertex & index buffers */
-      size_t vertex_size = ALIGN(draw_data->TotalVtxCount * sizeof(ImDrawVert), device_data->properties.limits.nonCoherentAtomSize);
-      size_t index_size = ALIGN(draw_data->TotalIdxCount * sizeof(ImDrawIdx), device_data->properties.limits.nonCoherentAtomSize);
-      if (draw->vertex_buffer_size < vertex_size)
-      {
-         CreateOrResizeBuffer(device_data,
-                              &draw->vertex_buffer,
-                              &draw->vertex_buffer_mem,
-                              &draw->vertex_buffer_size,
-                              vertex_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-      }
-      if (draw->index_buffer_size < index_size)
-      {
-         CreateOrResizeBuffer(device_data,
-                              &draw->index_buffer,
-                              &draw->index_buffer_mem,
-                              &draw->index_buffer_size,
-                              index_size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-      }
-
-      /* Upload vertex & index data */
-      ImDrawVert *vtx_dst = NULL;
-      ImDrawIdx *idx_dst = NULL;
-      VK_CHECK(device_data->vtable.MapMemory(device_data->device, draw->vertex_buffer_mem,
-                                             0, vertex_size, 0, (void **)(&vtx_dst)));
-      VK_CHECK(device_data->vtable.MapMemory(device_data->device, draw->index_buffer_mem,
-                                             0, index_size, 0, (void **)(&idx_dst)));
-      for (int n = 0; n < draw_data->CmdListsCount; n++)
-      {
-         const ImDrawList *cmd_list = draw_data->CmdLists[n];
-         memcpy(vtx_dst, cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
-         memcpy(idx_dst, cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-         vtx_dst += cmd_list->VtxBuffer.Size;
-         idx_dst += cmd_list->IdxBuffer.Size;
-      }
-      VkMappedMemoryRange range[2] = {};
-      range[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-      range[0].memory = draw->vertex_buffer_mem;
-      range[0].size = VK_WHOLE_SIZE;
-      range[1].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-      range[1].memory = draw->index_buffer_mem;
-      range[1].size = VK_WHOLE_SIZE;
-      VK_CHECK(device_data->vtable.FlushMappedMemoryRanges(device_data->device, 2, range));
-      device_data->vtable.UnmapMemory(device_data->device, draw->vertex_buffer_mem);
-      device_data->vtable.UnmapMemory(device_data->device, draw->index_buffer_mem);
-
-      /* Bind pipeline and descriptor sets */
-      device_data->vtable.CmdBindPipeline(draw->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, data->pipeline);
-      VkDescriptorSet desc_set[1] = {data->descriptor_set};
-      device_data->vtable.CmdBindDescriptorSets(draw->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                                data->pipeline_layout, 0, 1, desc_set, 0, NULL);
-
-      /* Bind vertex & index buffers */
-      VkBuffer vertex_buffers[1] = {draw->vertex_buffer};
-      VkDeviceSize vertex_offset[1] = {0};
-      device_data->vtable.CmdBindVertexBuffers(draw->command_buffer, 0, 1, vertex_buffers, vertex_offset);
-      device_data->vtable.CmdBindIndexBuffer(draw->command_buffer, draw->index_buffer, 0, VK_INDEX_TYPE_UINT16);
-
-      /* Setup viewport */
-      VkViewport viewport;
-      viewport.x = 0;
-      viewport.y = 0;
-      viewport.width = draw_data->DisplaySize.x;
-      viewport.height = draw_data->DisplaySize.y;
-      viewport.minDepth = 0.0f;
-      viewport.maxDepth = 1.0f;
-      device_data->vtable.CmdSetViewport(draw->command_buffer, 0, 1, &viewport);
-
-      /* Setup scale and translation through push constants :
-       *
-       * Our visible imgui space lies from draw_data->DisplayPos (top left) to
-       * draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayMin
-       * is typically (0,0) for single viewport apps.
-       */
-      float scale[2];
-      scale[0] = 2.0f / draw_data->DisplaySize.x;
-      scale[1] = 2.0f / draw_data->DisplaySize.y;
-      float translate[2];
-      translate[0] = -1.0f - draw_data->DisplayPos.x * scale[0];
-      translate[1] = -1.0f - draw_data->DisplayPos.y * scale[1];
-      device_data->vtable.CmdPushConstants(draw->command_buffer, data->pipeline_layout,
-                                           VK_SHADER_STAGE_VERTEX_BIT,
-                                           sizeof(float) * 0, sizeof(float) * 2, scale);
-      device_data->vtable.CmdPushConstants(draw->command_buffer, data->pipeline_layout,
-                                           VK_SHADER_STAGE_VERTEX_BIT,
-                                           sizeof(float) * 2, sizeof(float) * 2, translate);
-
-      // Render the command lists:
-      int vtx_offset = 0;
-      int idx_offset = 0;
-      ImVec2 display_pos = draw_data->DisplayPos;
-      for (int n = 0; n < draw_data->CmdListsCount; n++)
-      {
-         const ImDrawList *cmd_list = draw_data->CmdLists[n];
-         for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
-         {
-            const ImDrawCmd *pcmd = &cmd_list->CmdBuffer[cmd_i];
-            // Apply scissor/clipping rectangle
-            // FIXME: We could clamp width/height based on clamped min/max values.
-            VkRect2D scissor;
-            scissor.offset.x = (int32_t)(pcmd->ClipRect.x - display_pos.x) > 0 ? (int32_t)(pcmd->ClipRect.x - display_pos.x) : 0;
-            scissor.offset.y = (int32_t)(pcmd->ClipRect.y - display_pos.y) > 0 ? (int32_t)(pcmd->ClipRect.y - display_pos.y) : 0;
-            scissor.extent.width = (uint32_t)(pcmd->ClipRect.z - pcmd->ClipRect.x);
-            scissor.extent.height = (uint32_t)(pcmd->ClipRect.w - pcmd->ClipRect.y + 1); // FIXME: Why +1 here?
-            device_data->vtable.CmdSetScissor(draw->command_buffer, 0, 1, &scissor);
-
-            // Draw
-            device_data->vtable.CmdDrawIndexed(draw->command_buffer, pcmd->ElemCount, 1, idx_offset, vtx_offset, 0);
-
-            idx_offset += pcmd->ElemCount;
-         }
-         vtx_offset += cmd_list->VtxBuffer.Size;
-      }
-
-      device_data->vtable.CmdEndRenderPass(draw->command_buffer);
-
-      if (device_data->graphic_queue->family_index != present_queue->family_index)
-      {
-         /* Transfer the image back to the present queue family
-          * image layout was already changed to present by the render pass
-          */
-         imb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-         imb.pNext = nullptr;
-         imb.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-         imb.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-         imb.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-         imb.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-         imb.image = data->images[image_index];
-         imb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-         imb.subresourceRange.baseMipLevel = 0;
-         imb.subresourceRange.levelCount = 1;
-         imb.subresourceRange.baseArrayLayer = 0;
-         imb.subresourceRange.layerCount = 1;
-         imb.srcQueueFamilyIndex = device_data->graphic_queue->family_index;
-         imb.dstQueueFamilyIndex = present_queue->family_index;
-         device_data->vtable.CmdPipelineBarrier(draw->command_buffer,
-                                                VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-                                                VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-                                                0,          /* dependency flags */
-                                                0, nullptr, /* memory barriers */
-                                                0, nullptr, /* buffer memory barriers */
-                                                1, &imb);   /* image memory barriers */
-      }
-
-      device_data->vtable.EndCommandBuffer(draw->command_buffer);
-
-      /* When presenting on a different queue than where we're drawing the
-       * overlay *AND* when the application does not provide a semaphore to
-       * vkQueuePresent, insert our own cross engine synchronization
-       * semaphore.
-       */
-      if (n_wait_semaphores == 0 && device_data->graphic_queue->queue != present_queue->queue)
-      {
-         VkPipelineStageFlags stages_wait = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-         VkSubmitInfo submit_info = {};
-         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-         submit_info.commandBufferCount = 0;
-         submit_info.pWaitDstStageMask = &stages_wait;
-         submit_info.waitSemaphoreCount = 0;
-         submit_info.signalSemaphoreCount = 1;
-         submit_info.pSignalSemaphores = &draw->cross_engine_semaphore;
-
-         device_data->vtable.QueueSubmit(present_queue->queue, 1, &submit_info, VK_NULL_HANDLE);
-
-         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-         submit_info.commandBufferCount = 1;
-         submit_info.pWaitDstStageMask = &stages_wait;
-         submit_info.pCommandBuffers = &draw->command_buffer;
-         submit_info.waitSemaphoreCount = 1;
-         submit_info.pWaitSemaphores = &draw->cross_engine_semaphore;
-         submit_info.signalSemaphoreCount = 1;
-         submit_info.pSignalSemaphores = &draw->semaphore;
-
-         device_data->vtable.QueueSubmit(device_data->graphic_queue->queue, 1, &submit_info, draw->fence);
-      }
-      else
-      {
-         VkPipelineStageFlags *stages_wait = (VkPipelineStageFlags *)malloc(sizeof(VkPipelineStageFlags) * n_wait_semaphores);
-         for (unsigned i = 0; i < n_wait_semaphores; i++)
-         {
-            // wait in the fragment stage until the swapchain image is ready
-            stages_wait[i] = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-         }
-
-         VkSubmitInfo submit_info = {};
-         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-         submit_info.commandBufferCount = 1;
-         submit_info.pCommandBuffers = &draw->command_buffer;
-         submit_info.pWaitDstStageMask = stages_wait;
-         submit_info.waitSemaphoreCount = n_wait_semaphores;
-         submit_info.pWaitSemaphores = wait_semaphores;
-         submit_info.signalSemaphoreCount = 1;
-         submit_info.pSignalSemaphores = &draw->semaphore;
-
-         device_data->vtable.QueueSubmit(device_data->graphic_queue->queue, 1, &submit_info, draw->fence);
-
-         free(stages_wait);
-      }
-
-      return draw;
    }
 
-   static const uint32_t overlay_vert_spv[] = {
+   device_data->vtable.EndCommandBuffer(draw->command_buffer);
+
+   /* When presenting on a different queue than where we're drawing the
+    * overlay *AND* when the application does not provide a semaphore to
+    * vkQueuePresent, insert our own cross engine synchronization
+    * semaphore.
+    */
+   if (n_wait_semaphores == 0 && device_data->graphic_queue->queue != present_queue->queue)
+   {
+      VkPipelineStageFlags stages_wait = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+      VkSubmitInfo submit_info = {};
+      submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+      submit_info.commandBufferCount = 0;
+      submit_info.pWaitDstStageMask = &stages_wait;
+      submit_info.waitSemaphoreCount = 0;
+      submit_info.signalSemaphoreCount = 1;
+      submit_info.pSignalSemaphores = &draw->cross_engine_semaphore;
+
+      device_data->vtable.QueueSubmit(present_queue->queue, 1, &submit_info, VK_NULL_HANDLE);
+
+      submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+      submit_info.commandBufferCount = 1;
+      submit_info.pWaitDstStageMask = &stages_wait;
+      submit_info.pCommandBuffers = &draw->command_buffer;
+      submit_info.waitSemaphoreCount = 1;
+      submit_info.pWaitSemaphores = &draw->cross_engine_semaphore;
+      submit_info.signalSemaphoreCount = 1;
+      submit_info.pSignalSemaphores = &draw->semaphore;
+
+      device_data->vtable.QueueSubmit(device_data->graphic_queue->queue, 1, &submit_info, draw->fence);
+   }
+   else
+   {
+      VkPipelineStageFlags *stages_wait = (VkPipelineStageFlags *)malloc(sizeof(VkPipelineStageFlags) * n_wait_semaphores);
+      for (unsigned i = 0; i < n_wait_semaphores; i++)
+      {
+         // wait in the fragment stage until the swapchain image is ready
+         stages_wait[i] = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+      }
+
+      VkSubmitInfo submit_info = {};
+      submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+      submit_info.commandBufferCount = 1;
+      submit_info.pCommandBuffers = &draw->command_buffer;
+      submit_info.pWaitDstStageMask = stages_wait;
+      submit_info.waitSemaphoreCount = n_wait_semaphores;
+      submit_info.pWaitSemaphores = wait_semaphores;
+      submit_info.signalSemaphoreCount = 1;
+      submit_info.pSignalSemaphores = &draw->semaphore;
+
+      device_data->vtable.QueueSubmit(device_data->graphic_queue->queue, 1, &submit_info, draw->fence);
+
+      free(stages_wait);
+   }
+
+   return draw;
+}
+
+static const uint32_t overlay_vert_spv[] = {
 #include "overlay.vert.spv.h"
-   };
-   static const uint32_t overlay_frag_spv[] = {
+};
+static const uint32_t overlay_frag_spv[] = {
 #include "overlay.frag.spv.h"
-   };
+};
 
-   static void setup_swapchain_data_pipeline(struct swapchain_data * data)
+static void setup_swapchain_data_pipeline(struct swapchain_data *data)
+{
+   struct device_data *device_data = data->device;
+   VkShaderModule vert_module, frag_module;
+
+   /* Create shader modules */
+   VkShaderModuleCreateInfo vert_info = {};
+   vert_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+   vert_info.codeSize = sizeof(overlay_vert_spv);
+   vert_info.pCode = overlay_vert_spv;
+   VK_CHECK(device_data->vtable.CreateShaderModule(device_data->device,
+                                                   &vert_info, NULL, &vert_module));
+   VkShaderModuleCreateInfo frag_info = {};
+   frag_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+   frag_info.codeSize = sizeof(overlay_frag_spv);
+   frag_info.pCode = (uint32_t *)overlay_frag_spv;
+   VK_CHECK(device_data->vtable.CreateShaderModule(device_data->device,
+                                                   &frag_info, NULL, &frag_module));
+
+   /* Font sampler */
+   VkSamplerCreateInfo sampler_info = {};
+   sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+   sampler_info.magFilter = VK_FILTER_LINEAR;
+   sampler_info.minFilter = VK_FILTER_LINEAR;
+   sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+   sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+   sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+   sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+   sampler_info.minLod = -1000;
+   sampler_info.maxLod = 1000;
+   sampler_info.maxAnisotropy = 1.0f;
+   VK_CHECK(device_data->vtable.CreateSampler(device_data->device, &sampler_info,
+                                              NULL, &data->font_sampler));
+
+   /* Descriptor pool */
+   VkDescriptorPoolSize sampler_pool_size = {};
+   sampler_pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+   sampler_pool_size.descriptorCount = 1;
+   VkDescriptorPoolCreateInfo desc_pool_info = {};
+   desc_pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+   desc_pool_info.maxSets = 1;
+   desc_pool_info.poolSizeCount = 1;
+   desc_pool_info.pPoolSizes = &sampler_pool_size;
+   VK_CHECK(device_data->vtable.CreateDescriptorPool(device_data->device,
+                                                     &desc_pool_info,
+                                                     NULL, &data->descriptor_pool));
+
+   /* Descriptor layout */
+   VkSampler sampler[1] = {data->font_sampler};
+   VkDescriptorSetLayoutBinding binding[1] = {};
+   binding[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+   binding[0].descriptorCount = 1;
+   binding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+   binding[0].pImmutableSamplers = sampler;
+   VkDescriptorSetLayoutCreateInfo set_layout_info = {};
+   set_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+   set_layout_info.bindingCount = 1;
+   set_layout_info.pBindings = binding;
+   VK_CHECK(device_data->vtable.CreateDescriptorSetLayout(device_data->device,
+                                                          &set_layout_info,
+                                                          NULL, &data->descriptor_layout));
+
+   /* Descriptor set */
+   VkDescriptorSetAllocateInfo alloc_info = {};
+   alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+   alloc_info.descriptorPool = data->descriptor_pool;
+   alloc_info.descriptorSetCount = 1;
+   alloc_info.pSetLayouts = &data->descriptor_layout;
+   VK_CHECK(device_data->vtable.AllocateDescriptorSets(device_data->device,
+                                                       &alloc_info,
+                                                       &data->descriptor_set));
+
+   /* Constants: we are using 'vec2 offset' and 'vec2 scale' instead of a full
+    * 3d projection matrix
+    */
+   VkPushConstantRange push_constants[1] = {};
+   push_constants[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+   push_constants[0].offset = sizeof(float) * 0;
+   push_constants[0].size = sizeof(float) * 4;
+   VkPipelineLayoutCreateInfo layout_info = {};
+   layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+   layout_info.setLayoutCount = 1;
+   layout_info.pSetLayouts = &data->descriptor_layout;
+   layout_info.pushConstantRangeCount = 1;
+   layout_info.pPushConstantRanges = push_constants;
+   VK_CHECK(device_data->vtable.CreatePipelineLayout(device_data->device,
+                                                     &layout_info,
+                                                     NULL, &data->pipeline_layout));
+
+   VkPipelineShaderStageCreateInfo stage[2] = {};
+   stage[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+   stage[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+   stage[0].module = vert_module;
+   stage[0].pName = "main";
+   stage[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+   stage[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+   stage[1].module = frag_module;
+   stage[1].pName = "main";
+
+   VkVertexInputBindingDescription binding_desc[1] = {};
+   binding_desc[0].stride = sizeof(ImDrawVert);
+   binding_desc[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+   VkVertexInputAttributeDescription attribute_desc[3] = {};
+   attribute_desc[0].location = 0;
+   attribute_desc[0].binding = binding_desc[0].binding;
+   attribute_desc[0].format = VK_FORMAT_R32G32_SFLOAT;
+   attribute_desc[0].offset = IM_OFFSETOF(ImDrawVert, pos);
+   attribute_desc[1].location = 1;
+   attribute_desc[1].binding = binding_desc[0].binding;
+   attribute_desc[1].format = VK_FORMAT_R32G32_SFLOAT;
+   attribute_desc[1].offset = IM_OFFSETOF(ImDrawVert, uv);
+   attribute_desc[2].location = 2;
+   attribute_desc[2].binding = binding_desc[0].binding;
+   attribute_desc[2].format = VK_FORMAT_R8G8B8A8_UNORM;
+   attribute_desc[2].offset = IM_OFFSETOF(ImDrawVert, col);
+
+   VkPipelineVertexInputStateCreateInfo vertex_info = {};
+   vertex_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+   vertex_info.vertexBindingDescriptionCount = 1;
+   vertex_info.pVertexBindingDescriptions = binding_desc;
+   vertex_info.vertexAttributeDescriptionCount = 3;
+   vertex_info.pVertexAttributeDescriptions = attribute_desc;
+
+   VkPipelineInputAssemblyStateCreateInfo ia_info = {};
+   ia_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+   ia_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+   VkPipelineViewportStateCreateInfo viewport_info = {};
+   viewport_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+   viewport_info.viewportCount = 1;
+   viewport_info.scissorCount = 1;
+
+   VkPipelineRasterizationStateCreateInfo raster_info = {};
+   raster_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+   raster_info.polygonMode = VK_POLYGON_MODE_FILL;
+   raster_info.cullMode = VK_CULL_MODE_NONE;
+   raster_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+   raster_info.lineWidth = 1.0f;
+
+   VkPipelineMultisampleStateCreateInfo ms_info = {};
+   ms_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+   ms_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+   VkPipelineColorBlendAttachmentState color_attachment[1] = {};
+   color_attachment[0].blendEnable = VK_TRUE;
+   color_attachment[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+   color_attachment[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+   color_attachment[0].colorBlendOp = VK_BLEND_OP_ADD;
+   color_attachment[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+   color_attachment[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+   color_attachment[0].alphaBlendOp = VK_BLEND_OP_ADD;
+   color_attachment[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+                                        VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+   VkPipelineDepthStencilStateCreateInfo depth_info = {};
+   depth_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+
+   VkPipelineColorBlendStateCreateInfo blend_info = {};
+   blend_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+   blend_info.attachmentCount = 1;
+   blend_info.pAttachments = color_attachment;
+
+   VkDynamicState dynamic_states[2] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+   VkPipelineDynamicStateCreateInfo dynamic_state = {};
+   dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+   dynamic_state.dynamicStateCount = (uint32_t)IM_ARRAYSIZE(dynamic_states);
+   dynamic_state.pDynamicStates = dynamic_states;
+
+   VkGraphicsPipelineCreateInfo info = {};
+   info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+   info.flags = 0;
+   info.stageCount = 2;
+   info.pStages = stage;
+   info.pVertexInputState = &vertex_info;
+   info.pInputAssemblyState = &ia_info;
+   info.pViewportState = &viewport_info;
+   info.pRasterizationState = &raster_info;
+   info.pMultisampleState = &ms_info;
+   info.pDepthStencilState = &depth_info;
+   info.pColorBlendState = &blend_info;
+   info.pDynamicState = &dynamic_state;
+   info.layout = data->pipeline_layout;
+   info.renderPass = data->render_pass;
+   VK_CHECK(
+       device_data->vtable.CreateGraphicsPipelines(device_data->device, VK_NULL_HANDLE,
+                                                   1, &info,
+                                                   NULL, &data->pipeline));
+
+   device_data->vtable.DestroyShaderModule(device_data->device, vert_module, NULL);
+   device_data->vtable.DestroyShaderModule(device_data->device, frag_module, NULL);
+
+   ImGuiIO &io = ImGui::GetIO();
+   unsigned char *pixels;
+   int width, height;
+   io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+   /* Font image */
+   VkImageCreateInfo image_info = {};
+   image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+   image_info.imageType = VK_IMAGE_TYPE_2D;
+   image_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+   image_info.extent.width = width;
+   image_info.extent.height = height;
+   image_info.extent.depth = 1;
+   image_info.mipLevels = 1;
+   image_info.arrayLayers = 1;
+   image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+   image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+   image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+   image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+   image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+   VK_CHECK(device_data->vtable.CreateImage(device_data->device, &image_info,
+                                            NULL, &data->font_image));
+   VkMemoryRequirements font_image_req;
+   device_data->vtable.GetImageMemoryRequirements(device_data->device,
+                                                  data->font_image, &font_image_req);
+   VkMemoryAllocateInfo image_alloc_info = {};
+   image_alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+   image_alloc_info.allocationSize = font_image_req.size;
+   image_alloc_info.memoryTypeIndex = vk_memory_type(device_data,
+                                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                                     font_image_req.memoryTypeBits);
+   VK_CHECK(device_data->vtable.AllocateMemory(device_data->device, &image_alloc_info,
+                                               NULL, &data->font_mem));
+   VK_CHECK(device_data->vtable.BindImageMemory(device_data->device,
+                                                data->font_image,
+                                                data->font_mem, 0));
+
+   /* Font image view */
+   VkImageViewCreateInfo view_info = {};
+   view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+   view_info.image = data->font_image;
+   view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+   view_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+   view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+   view_info.subresourceRange.levelCount = 1;
+   view_info.subresourceRange.layerCount = 1;
+   VK_CHECK(device_data->vtable.CreateImageView(device_data->device, &view_info,
+                                                NULL, &data->font_image_view));
+
+   /* Descriptor set */
+   VkDescriptorImageInfo desc_image[1] = {};
+   desc_image[0].sampler = data->font_sampler;
+   desc_image[0].imageView = data->font_image_view;
+   desc_image[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+   VkWriteDescriptorSet write_desc[1] = {};
+   write_desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+   write_desc[0].dstSet = data->descriptor_set;
+   write_desc[0].descriptorCount = 1;
+   write_desc[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+   write_desc[0].pImageInfo = desc_image;
+   device_data->vtable.UpdateDescriptorSets(device_data->device, 1, write_desc, 0, NULL);
+}
+
+static void setup_swapchain_data(struct swapchain_data *data,
+                                 const VkSwapchainCreateInfoKHR *pCreateInfo)
+{
+   data->width = pCreateInfo->imageExtent.width;
+   data->height = pCreateInfo->imageExtent.height;
+   data->format = pCreateInfo->imageFormat;
+
+   data->imgui_context = ImGui::CreateContext();
+   ImGui::SetCurrentContext(data->imgui_context);
+
+   ImGui::GetIO().IniFilename = NULL;
+   ImGui::GetIO().DisplaySize = ImVec2((float)data->width, (float)data->height);
+
+   struct device_data *device_data = data->device;
+
+   /* Render pass */
+   VkAttachmentDescription attachment_desc = {};
+   attachment_desc.format = pCreateInfo->imageFormat;
+   attachment_desc.samples = VK_SAMPLE_COUNT_1_BIT;
+   attachment_desc.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+   attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+   attachment_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+   attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+   attachment_desc.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+   attachment_desc.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+   VkAttachmentReference color_attachment = {};
+   color_attachment.attachment = 0;
+   color_attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+   VkSubpassDescription subpass = {};
+   subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+   subpass.colorAttachmentCount = 1;
+   subpass.pColorAttachments = &color_attachment;
+   VkSubpassDependency dependency = {};
+   dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+   dependency.dstSubpass = 0;
+   dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+   dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+   dependency.srcAccessMask = 0;
+   dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+   VkRenderPassCreateInfo render_pass_info = {};
+   render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+   render_pass_info.attachmentCount = 1;
+   render_pass_info.pAttachments = &attachment_desc;
+   render_pass_info.subpassCount = 1;
+   render_pass_info.pSubpasses = &subpass;
+   render_pass_info.dependencyCount = 1;
+   render_pass_info.pDependencies = &dependency;
+   VK_CHECK(device_data->vtable.CreateRenderPass(device_data->device,
+                                                 &render_pass_info,
+                                                 NULL, &data->render_pass));
+
+   setup_swapchain_data_pipeline(data);
+
+   VK_CHECK(device_data->vtable.GetSwapchainImagesKHR(device_data->device,
+                                                      data->swapchain,
+                                                      &data->n_images,
+                                                      NULL));
+
+   data->images = ralloc_array(data, VkImage, data->n_images);
+   data->image_views = ralloc_array(data, VkImageView, data->n_images);
+   data->framebuffers = ralloc_array(data, VkFramebuffer, data->n_images);
+
+   VK_CHECK(device_data->vtable.GetSwapchainImagesKHR(device_data->device,
+                                                      data->swapchain,
+                                                      &data->n_images,
+                                                      data->images));
+
+   /* Image views */
+   VkImageViewCreateInfo view_info = {};
+   view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+   view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+   view_info.format = pCreateInfo->imageFormat;
+   view_info.components.r = VK_COMPONENT_SWIZZLE_R;
+   view_info.components.g = VK_COMPONENT_SWIZZLE_G;
+   view_info.components.b = VK_COMPONENT_SWIZZLE_B;
+   view_info.components.a = VK_COMPONENT_SWIZZLE_A;
+   view_info.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+   for (uint32_t i = 0; i < data->n_images; i++)
    {
-      struct device_data *device_data = data->device;
-      VkShaderModule vert_module, frag_module;
-
-      /* Create shader modules */
-      VkShaderModuleCreateInfo vert_info = {};
-      vert_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-      vert_info.codeSize = sizeof(overlay_vert_spv);
-      vert_info.pCode = overlay_vert_spv;
-      VK_CHECK(device_data->vtable.CreateShaderModule(device_data->device,
-                                                      &vert_info, NULL, &vert_module));
-      VkShaderModuleCreateInfo frag_info = {};
-      frag_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-      frag_info.codeSize = sizeof(overlay_frag_spv);
-      frag_info.pCode = (uint32_t *)overlay_frag_spv;
-      VK_CHECK(device_data->vtable.CreateShaderModule(device_data->device,
-                                                      &frag_info, NULL, &frag_module));
-
-      /* Font sampler */
-      VkSamplerCreateInfo sampler_info = {};
-      sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-      sampler_info.magFilter = VK_FILTER_LINEAR;
-      sampler_info.minFilter = VK_FILTER_LINEAR;
-      sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-      sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-      sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-      sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-      sampler_info.minLod = -1000;
-      sampler_info.maxLod = 1000;
-      sampler_info.maxAnisotropy = 1.0f;
-      VK_CHECK(device_data->vtable.CreateSampler(device_data->device, &sampler_info,
-                                                 NULL, &data->font_sampler));
-
-      /* Descriptor pool */
-      VkDescriptorPoolSize sampler_pool_size = {};
-      sampler_pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-      sampler_pool_size.descriptorCount = 1;
-      VkDescriptorPoolCreateInfo desc_pool_info = {};
-      desc_pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-      desc_pool_info.maxSets = 1;
-      desc_pool_info.poolSizeCount = 1;
-      desc_pool_info.pPoolSizes = &sampler_pool_size;
-      VK_CHECK(device_data->vtable.CreateDescriptorPool(device_data->device,
-                                                        &desc_pool_info,
-                                                        NULL, &data->descriptor_pool));
-
-      /* Descriptor layout */
-      VkSampler sampler[1] = {data->font_sampler};
-      VkDescriptorSetLayoutBinding binding[1] = {};
-      binding[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-      binding[0].descriptorCount = 1;
-      binding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-      binding[0].pImmutableSamplers = sampler;
-      VkDescriptorSetLayoutCreateInfo set_layout_info = {};
-      set_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-      set_layout_info.bindingCount = 1;
-      set_layout_info.pBindings = binding;
-      VK_CHECK(device_data->vtable.CreateDescriptorSetLayout(device_data->device,
-                                                             &set_layout_info,
-                                                             NULL, &data->descriptor_layout));
-
-      /* Descriptor set */
-      VkDescriptorSetAllocateInfo alloc_info = {};
-      alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-      alloc_info.descriptorPool = data->descriptor_pool;
-      alloc_info.descriptorSetCount = 1;
-      alloc_info.pSetLayouts = &data->descriptor_layout;
-      VK_CHECK(device_data->vtable.AllocateDescriptorSets(device_data->device,
-                                                          &alloc_info,
-                                                          &data->descriptor_set));
-
-      /* Constants: we are using 'vec2 offset' and 'vec2 scale' instead of a full
-       * 3d projection matrix
-       */
-      VkPushConstantRange push_constants[1] = {};
-      push_constants[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-      push_constants[0].offset = sizeof(float) * 0;
-      push_constants[0].size = sizeof(float) * 4;
-      VkPipelineLayoutCreateInfo layout_info = {};
-      layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-      layout_info.setLayoutCount = 1;
-      layout_info.pSetLayouts = &data->descriptor_layout;
-      layout_info.pushConstantRangeCount = 1;
-      layout_info.pPushConstantRanges = push_constants;
-      VK_CHECK(device_data->vtable.CreatePipelineLayout(device_data->device,
-                                                        &layout_info,
-                                                        NULL, &data->pipeline_layout));
-
-      VkPipelineShaderStageCreateInfo stage[2] = {};
-      stage[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-      stage[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-      stage[0].module = vert_module;
-      stage[0].pName = "main";
-      stage[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-      stage[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-      stage[1].module = frag_module;
-      stage[1].pName = "main";
-
-      VkVertexInputBindingDescription binding_desc[1] = {};
-      binding_desc[0].stride = sizeof(ImDrawVert);
-      binding_desc[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-      VkVertexInputAttributeDescription attribute_desc[3] = {};
-      attribute_desc[0].location = 0;
-      attribute_desc[0].binding = binding_desc[0].binding;
-      attribute_desc[0].format = VK_FORMAT_R32G32_SFLOAT;
-      attribute_desc[0].offset = IM_OFFSETOF(ImDrawVert, pos);
-      attribute_desc[1].location = 1;
-      attribute_desc[1].binding = binding_desc[0].binding;
-      attribute_desc[1].format = VK_FORMAT_R32G32_SFLOAT;
-      attribute_desc[1].offset = IM_OFFSETOF(ImDrawVert, uv);
-      attribute_desc[2].location = 2;
-      attribute_desc[2].binding = binding_desc[0].binding;
-      attribute_desc[2].format = VK_FORMAT_R8G8B8A8_UNORM;
-      attribute_desc[2].offset = IM_OFFSETOF(ImDrawVert, col);
-
-      VkPipelineVertexInputStateCreateInfo vertex_info = {};
-      vertex_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-      vertex_info.vertexBindingDescriptionCount = 1;
-      vertex_info.pVertexBindingDescriptions = binding_desc;
-      vertex_info.vertexAttributeDescriptionCount = 3;
-      vertex_info.pVertexAttributeDescriptions = attribute_desc;
-
-      VkPipelineInputAssemblyStateCreateInfo ia_info = {};
-      ia_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-      ia_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
-      VkPipelineViewportStateCreateInfo viewport_info = {};
-      viewport_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-      viewport_info.viewportCount = 1;
-      viewport_info.scissorCount = 1;
-
-      VkPipelineRasterizationStateCreateInfo raster_info = {};
-      raster_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-      raster_info.polygonMode = VK_POLYGON_MODE_FILL;
-      raster_info.cullMode = VK_CULL_MODE_NONE;
-      raster_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-      raster_info.lineWidth = 1.0f;
-
-      VkPipelineMultisampleStateCreateInfo ms_info = {};
-      ms_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-      ms_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-      VkPipelineColorBlendAttachmentState color_attachment[1] = {};
-      color_attachment[0].blendEnable = VK_TRUE;
-      color_attachment[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-      color_attachment[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-      color_attachment[0].colorBlendOp = VK_BLEND_OP_ADD;
-      color_attachment[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-      color_attachment[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-      color_attachment[0].alphaBlendOp = VK_BLEND_OP_ADD;
-      color_attachment[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
-                                           VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-
-      VkPipelineDepthStencilStateCreateInfo depth_info = {};
-      depth_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-
-      VkPipelineColorBlendStateCreateInfo blend_info = {};
-      blend_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-      blend_info.attachmentCount = 1;
-      blend_info.pAttachments = color_attachment;
-
-      VkDynamicState dynamic_states[2] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-      VkPipelineDynamicStateCreateInfo dynamic_state = {};
-      dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-      dynamic_state.dynamicStateCount = (uint32_t)IM_ARRAYSIZE(dynamic_states);
-      dynamic_state.pDynamicStates = dynamic_states;
-
-      VkGraphicsPipelineCreateInfo info = {};
-      info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-      info.flags = 0;
-      info.stageCount = 2;
-      info.pStages = stage;
-      info.pVertexInputState = &vertex_info;
-      info.pInputAssemblyState = &ia_info;
-      info.pViewportState = &viewport_info;
-      info.pRasterizationState = &raster_info;
-      info.pMultisampleState = &ms_info;
-      info.pDepthStencilState = &depth_info;
-      info.pColorBlendState = &blend_info;
-      info.pDynamicState = &dynamic_state;
-      info.layout = data->pipeline_layout;
-      info.renderPass = data->render_pass;
-      VK_CHECK(
-          device_data->vtable.CreateGraphicsPipelines(device_data->device, VK_NULL_HANDLE,
-                                                      1, &info,
-                                                      NULL, &data->pipeline));
-
-      device_data->vtable.DestroyShaderModule(device_data->device, vert_module, NULL);
-      device_data->vtable.DestroyShaderModule(device_data->device, frag_module, NULL);
-
-      ImGuiIO &io = ImGui::GetIO();
-      unsigned char *pixels;
-      int width, height;
-      io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-
-      /* Font image */
-      VkImageCreateInfo image_info = {};
-      image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-      image_info.imageType = VK_IMAGE_TYPE_2D;
-      image_info.format = VK_FORMAT_R8G8B8A8_UNORM;
-      image_info.extent.width = width;
-      image_info.extent.height = height;
-      image_info.extent.depth = 1;
-      image_info.mipLevels = 1;
-      image_info.arrayLayers = 1;
-      image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-      image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-      image_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-      image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-      VK_CHECK(device_data->vtable.CreateImage(device_data->device, &image_info,
-                                               NULL, &data->font_image));
-      VkMemoryRequirements font_image_req;
-      device_data->vtable.GetImageMemoryRequirements(device_data->device,
-                                                     data->font_image, &font_image_req);
-      VkMemoryAllocateInfo image_alloc_info = {};
-      image_alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-      image_alloc_info.allocationSize = font_image_req.size;
-      image_alloc_info.memoryTypeIndex = vk_memory_type(device_data,
-                                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                                        font_image_req.memoryTypeBits);
-      VK_CHECK(device_data->vtable.AllocateMemory(device_data->device, &image_alloc_info,
-                                                  NULL, &data->font_mem));
-      VK_CHECK(device_data->vtable.BindImageMemory(device_data->device,
-                                                   data->font_image,
-                                                   data->font_mem, 0));
-
-      /* Font image view */
-      VkImageViewCreateInfo view_info = {};
-      view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-      view_info.image = data->font_image;
-      view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-      view_info.format = VK_FORMAT_R8G8B8A8_UNORM;
-      view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      view_info.subresourceRange.levelCount = 1;
-      view_info.subresourceRange.layerCount = 1;
-      VK_CHECK(device_data->vtable.CreateImageView(device_data->device, &view_info,
-                                                   NULL, &data->font_image_view));
-
-      /* Descriptor set */
-      VkDescriptorImageInfo desc_image[1] = {};
-      desc_image[0].sampler = data->font_sampler;
-      desc_image[0].imageView = data->font_image_view;
-      desc_image[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-      VkWriteDescriptorSet write_desc[1] = {};
-      write_desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      write_desc[0].dstSet = data->descriptor_set;
-      write_desc[0].descriptorCount = 1;
-      write_desc[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-      write_desc[0].pImageInfo = desc_image;
-      device_data->vtable.UpdateDescriptorSets(device_data->device, 1, write_desc, 0, NULL);
+      view_info.image = data->images[i];
+      VK_CHECK(device_data->vtable.CreateImageView(device_data->device,
+                                                   &view_info, NULL,
+                                                   &data->image_views[i]));
    }
 
-   static void setup_swapchain_data(struct swapchain_data * data,
-                                    const VkSwapchainCreateInfoKHR *pCreateInfo)
+   /* Framebuffers */
+   VkImageView attachment[1];
+   VkFramebufferCreateInfo fb_info = {};
+   fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+   fb_info.renderPass = data->render_pass;
+   fb_info.attachmentCount = 1;
+   fb_info.pAttachments = attachment;
+   fb_info.width = data->width;
+   fb_info.height = data->height;
+   fb_info.layers = 1;
+   for (uint32_t i = 0; i < data->n_images; i++)
    {
-      data->width = pCreateInfo->imageExtent.width;
-      data->height = pCreateInfo->imageExtent.height;
-      data->format = pCreateInfo->imageFormat;
-
-      data->imgui_context = ImGui::CreateContext();
-      ImGui::SetCurrentContext(data->imgui_context);
-
-      ImGui::GetIO().IniFilename = NULL;
-      ImGui::GetIO().DisplaySize = ImVec2((float)data->width, (float)data->height);
-
-      struct device_data *device_data = data->device;
-
-      /* Render pass */
-      VkAttachmentDescription attachment_desc = {};
-      attachment_desc.format = pCreateInfo->imageFormat;
-      attachment_desc.samples = VK_SAMPLE_COUNT_1_BIT;
-      attachment_desc.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-      attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-      attachment_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-      attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-      attachment_desc.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-      attachment_desc.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-      VkAttachmentReference color_attachment = {};
-      color_attachment.attachment = 0;
-      color_attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-      VkSubpassDescription subpass = {};
-      subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-      subpass.colorAttachmentCount = 1;
-      subpass.pColorAttachments = &color_attachment;
-      VkSubpassDependency dependency = {};
-      dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-      dependency.dstSubpass = 0;
-      dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-      dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-      dependency.srcAccessMask = 0;
-      dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-      VkRenderPassCreateInfo render_pass_info = {};
-      render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-      render_pass_info.attachmentCount = 1;
-      render_pass_info.pAttachments = &attachment_desc;
-      render_pass_info.subpassCount = 1;
-      render_pass_info.pSubpasses = &subpass;
-      render_pass_info.dependencyCount = 1;
-      render_pass_info.pDependencies = &dependency;
-      VK_CHECK(device_data->vtable.CreateRenderPass(device_data->device,
-                                                    &render_pass_info,
-                                                    NULL, &data->render_pass));
-
-      setup_swapchain_data_pipeline(data);
-
-      VK_CHECK(device_data->vtable.GetSwapchainImagesKHR(device_data->device,
-                                                         data->swapchain,
-                                                         &data->n_images,
-                                                         NULL));
-
-      data->images = ralloc_array(data, VkImage, data->n_images);
-      data->image_views = ralloc_array(data, VkImageView, data->n_images);
-      data->framebuffers = ralloc_array(data, VkFramebuffer, data->n_images);
-
-      VK_CHECK(device_data->vtable.GetSwapchainImagesKHR(device_data->device,
-                                                         data->swapchain,
-                                                         &data->n_images,
-                                                         data->images));
-
-      /* Image views */
-      VkImageViewCreateInfo view_info = {};
-      view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-      view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-      view_info.format = pCreateInfo->imageFormat;
-      view_info.components.r = VK_COMPONENT_SWIZZLE_R;
-      view_info.components.g = VK_COMPONENT_SWIZZLE_G;
-      view_info.components.b = VK_COMPONENT_SWIZZLE_B;
-      view_info.components.a = VK_COMPONENT_SWIZZLE_A;
-      view_info.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-      for (uint32_t i = 0; i < data->n_images; i++)
-      {
-         view_info.image = data->images[i];
-         VK_CHECK(device_data->vtable.CreateImageView(device_data->device,
-                                                      &view_info, NULL,
-                                                      &data->image_views[i]));
-      }
-
-      /* Framebuffers */
-      VkImageView attachment[1];
-      VkFramebufferCreateInfo fb_info = {};
-      fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-      fb_info.renderPass = data->render_pass;
-      fb_info.attachmentCount = 1;
-      fb_info.pAttachments = attachment;
-      fb_info.width = data->width;
-      fb_info.height = data->height;
-      fb_info.layers = 1;
-      for (uint32_t i = 0; i < data->n_images; i++)
-      {
-         attachment[0] = data->image_views[i];
-         VK_CHECK(device_data->vtable.CreateFramebuffer(device_data->device, &fb_info,
-                                                        NULL, &data->framebuffers[i]));
-      }
-
-      /* Command buffer pool */
-      VkCommandPoolCreateInfo cmd_buffer_pool_info = {};
-      cmd_buffer_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-      cmd_buffer_pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-      cmd_buffer_pool_info.queueFamilyIndex = device_data->graphic_queue->family_index;
-      VK_CHECK(device_data->vtable.CreateCommandPool(device_data->device,
-                                                     &cmd_buffer_pool_info,
-                                                     NULL, &data->command_pool));
+      attachment[0] = data->image_views[i];
+      VK_CHECK(device_data->vtable.CreateFramebuffer(device_data->device, &fb_info,
+                                                     NULL, &data->framebuffers[i]));
    }
 
-   static void shutdown_swapchain_data(struct swapchain_data * data)
+   /* Command buffer pool */
+   VkCommandPoolCreateInfo cmd_buffer_pool_info = {};
+   cmd_buffer_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+   cmd_buffer_pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+   cmd_buffer_pool_info.queueFamilyIndex = device_data->graphic_queue->family_index;
+   VK_CHECK(device_data->vtable.CreateCommandPool(device_data->device,
+                                                  &cmd_buffer_pool_info,
+                                                  NULL, &data->command_pool));
+}
+
+static void shutdown_swapchain_data(struct swapchain_data *data)
+{
+   struct device_data *device_data = data->device;
+
+   list_for_each_entry_safe(struct overlay_draw, draw, &data->draws, link)
    {
-      struct device_data *device_data = data->device;
-
-      list_for_each_entry_safe(struct overlay_draw, draw, &data->draws, link)
-      {
-         device_data->vtable.DestroySemaphore(device_data->device, draw->cross_engine_semaphore, NULL);
-         device_data->vtable.DestroySemaphore(device_data->device, draw->semaphore, NULL);
-         device_data->vtable.DestroyFence(device_data->device, draw->fence, NULL);
-         device_data->vtable.DestroyBuffer(device_data->device, draw->vertex_buffer, NULL);
-         device_data->vtable.DestroyBuffer(device_data->device, draw->index_buffer, NULL);
-         device_data->vtable.FreeMemory(device_data->device, draw->vertex_buffer_mem, NULL);
-         device_data->vtable.FreeMemory(device_data->device, draw->index_buffer_mem, NULL);
-      }
-
-      for (uint32_t i = 0; i < data->n_images; i++)
-      {
-         device_data->vtable.DestroyImageView(device_data->device, data->image_views[i], NULL);
-         device_data->vtable.DestroyFramebuffer(device_data->device, data->framebuffers[i], NULL);
-      }
-
-      device_data->vtable.DestroyRenderPass(device_data->device, data->render_pass, NULL);
-
-      device_data->vtable.DestroyCommandPool(device_data->device, data->command_pool, NULL);
-
-      device_data->vtable.DestroyPipeline(device_data->device, data->pipeline, NULL);
-      device_data->vtable.DestroyPipelineLayout(device_data->device, data->pipeline_layout, NULL);
-
-      device_data->vtable.DestroyDescriptorPool(device_data->device,
-                                                data->descriptor_pool, NULL);
-      device_data->vtable.DestroyDescriptorSetLayout(device_data->device,
-                                                     data->descriptor_layout, NULL);
-
-      device_data->vtable.DestroySampler(device_data->device, data->font_sampler, NULL);
-      device_data->vtable.DestroyImageView(device_data->device, data->font_image_view, NULL);
-      device_data->vtable.DestroyImage(device_data->device, data->font_image, NULL);
-      device_data->vtable.FreeMemory(device_data->device, data->font_mem, NULL);
-
-      device_data->vtable.DestroyBuffer(device_data->device, data->upload_font_buffer, NULL);
-      device_data->vtable.FreeMemory(device_data->device, data->upload_font_buffer_mem, NULL);
-
-      ImGui::DestroyContext(data->imgui_context);
+      device_data->vtable.DestroySemaphore(device_data->device, draw->cross_engine_semaphore, NULL);
+      device_data->vtable.DestroySemaphore(device_data->device, draw->semaphore, NULL);
+      device_data->vtable.DestroyFence(device_data->device, draw->fence, NULL);
+      device_data->vtable.DestroyBuffer(device_data->device, draw->vertex_buffer, NULL);
+      device_data->vtable.DestroyBuffer(device_data->device, draw->index_buffer, NULL);
+      device_data->vtable.FreeMemory(device_data->device, draw->vertex_buffer_mem, NULL);
+      device_data->vtable.FreeMemory(device_data->device, draw->index_buffer_mem, NULL);
    }
 
-   static struct overlay_draw *before_present(struct swapchain_data * swapchain_data,
-                                              struct queue_data * present_queue,
-                                              const VkSemaphore *wait_semaphores,
-                                              unsigned n_wait_semaphores,
-                                              unsigned imageIndex)
+   for (uint32_t i = 0; i < data->n_images; i++)
    {
-      struct instance_data *instance_data = swapchain_data->device->instance;
-      struct overlay_draw *draw = NULL;
-
-      snapshot_swapchain_frame(swapchain_data);
-
-      if (!instance_data->params.no_display && swapchain_data->n_frames > 0)
-      {
-         compute_swapchain_display(swapchain_data);
-         draw = render_swapchain_display(swapchain_data, present_queue,
-                                         wait_semaphores, n_wait_semaphores,
-                                         imageIndex);
-      }
-
-      return draw;
+      device_data->vtable.DestroyImageView(device_data->device, data->image_views[i], NULL);
+      device_data->vtable.DestroyFramebuffer(device_data->device, data->framebuffers[i], NULL);
    }
 
-   static VkResult overlay_CreateSwapchainKHR(
-       VkDevice device,
-       const VkSwapchainCreateInfoKHR *pCreateInfo,
-       const VkAllocationCallbacks *pAllocator,
-       VkSwapchainKHR *pSwapchain)
+   device_data->vtable.DestroyRenderPass(device_data->device, data->render_pass, NULL);
+
+   device_data->vtable.DestroyCommandPool(device_data->device, data->command_pool, NULL);
+
+   device_data->vtable.DestroyPipeline(device_data->device, data->pipeline, NULL);
+   device_data->vtable.DestroyPipelineLayout(device_data->device, data->pipeline_layout, NULL);
+
+   device_data->vtable.DestroyDescriptorPool(device_data->device,
+                                             data->descriptor_pool, NULL);
+   device_data->vtable.DestroyDescriptorSetLayout(device_data->device,
+                                                  data->descriptor_layout, NULL);
+
+   device_data->vtable.DestroySampler(device_data->device, data->font_sampler, NULL);
+   device_data->vtable.DestroyImageView(device_data->device, data->font_image_view, NULL);
+   device_data->vtable.DestroyImage(device_data->device, data->font_image, NULL);
+   device_data->vtable.FreeMemory(device_data->device, data->font_mem, NULL);
+
+   device_data->vtable.DestroyBuffer(device_data->device, data->upload_font_buffer, NULL);
+   device_data->vtable.FreeMemory(device_data->device, data->upload_font_buffer_mem, NULL);
+
+   ImGui::DestroyContext(data->imgui_context);
+}
+
+static struct overlay_draw *before_present(struct swapchain_data *swapchain_data,
+                                           struct queue_data *present_queue,
+                                           const VkSemaphore *wait_semaphores,
+                                           unsigned n_wait_semaphores,
+                                           unsigned imageIndex)
+{
+   struct instance_data *instance_data = swapchain_data->device->instance;
+   struct overlay_draw *draw = NULL;
+
+   snapshot_swapchain_frame(swapchain_data);
+
+   if (!instance_data->params.no_display && swapchain_data->n_frames > 0)
+   {
+      compute_swapchain_display(swapchain_data);
+      draw = render_swapchain_display(swapchain_data, present_queue,
+                                      wait_semaphores, n_wait_semaphores,
+                                      imageIndex);
+   }
+
+   return draw;
+}
+
+static VkResult overlay_CreateSwapchainKHR(
+    VkDevice device,
+    const VkSwapchainCreateInfoKHR *pCreateInfo,
+    const VkAllocationCallbacks *pAllocator,
+    VkSwapchainKHR *pSwapchain)
+{
+   struct device_data *device_data = FIND(struct device_data, device);
+   VkResult result = device_data->vtable.CreateSwapchainKHR(device, pCreateInfo, pAllocator, pSwapchain);
+   if (result != VK_SUCCESS)
+      return result;
+
+   struct swapchain_data *swapchain_data = new_swapchain_data(*pSwapchain, device_data);
+   setup_swapchain_data(swapchain_data, pCreateInfo);
+   return result;
+}
+
+static void overlay_DestroySwapchainKHR(
+    VkDevice device,
+    VkSwapchainKHR swapchain,
+    const VkAllocationCallbacks *pAllocator)
+{
+   if (swapchain == VK_NULL_HANDLE)
    {
       struct device_data *device_data = FIND(struct device_data, device);
-      VkResult result = device_data->vtable.CreateSwapchainKHR(device, pCreateInfo, pAllocator, pSwapchain);
-      if (result != VK_SUCCESS)
-         return result;
-
-      struct swapchain_data *swapchain_data = new_swapchain_data(*pSwapchain, device_data);
-      setup_swapchain_data(swapchain_data, pCreateInfo);
-      return result;
+      device_data->vtable.DestroySwapchainKHR(device, swapchain, pAllocator);
+      return;
    }
 
-   static void overlay_DestroySwapchainKHR(
-       VkDevice device,
-       VkSwapchainKHR swapchain,
-       const VkAllocationCallbacks *pAllocator)
+   struct swapchain_data *swapchain_data =
+       FIND(struct swapchain_data, swapchain);
+
+   shutdown_swapchain_data(swapchain_data);
+   swapchain_data->device->vtable.DestroySwapchainKHR(device, swapchain, pAllocator);
+   destroy_swapchain_data(swapchain_data);
+}
+
+static VkResult overlay_QueuePresentKHR(
+    VkQueue queue,
+    const VkPresentInfoKHR *pPresentInfo)
+{
+   struct queue_data *queue_data = FIND(struct queue_data, queue);
+   struct device_data *device_data = queue_data->device;
+   struct instance_data *instance_data = device_data->instance;
+   uint32_t query_results[OVERLAY_QUERY_COUNT];
+
+   device_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_frame]++;
+
+   if (list_length(&queue_data->running_command_buffer) > 0)
    {
-      if (swapchain == VK_NULL_HANDLE)
-      {
-         struct device_data *device_data = FIND(struct device_data, device);
-         device_data->vtable.DestroySwapchainKHR(device, swapchain, pAllocator);
-         return;
-      }
-
-      struct swapchain_data *swapchain_data =
-          FIND(struct swapchain_data, swapchain);
-
-      shutdown_swapchain_data(swapchain_data);
-      swapchain_data->device->vtable.DestroySwapchainKHR(device, swapchain, pAllocator);
-      destroy_swapchain_data(swapchain_data);
-   }
-
-   static VkResult overlay_QueuePresentKHR(
-       VkQueue queue,
-       const VkPresentInfoKHR *pPresentInfo)
-   {
-      struct queue_data *queue_data = FIND(struct queue_data, queue);
-      struct device_data *device_data = queue_data->device;
-      struct instance_data *instance_data = device_data->instance;
-      uint32_t query_results[OVERLAY_QUERY_COUNT];
-
-      device_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_frame]++;
-
-      if (list_length(&queue_data->running_command_buffer) > 0)
-      {
-         /* Before getting the query results, make sure the operations have
-          * completed.
-          */
-         VK_CHECK(device_data->vtable.ResetFences(device_data->device,
-                                                  1, &queue_data->queries_fence));
-         VK_CHECK(device_data->vtable.QueueSubmit(queue, 0, NULL, queue_data->queries_fence));
-         VK_CHECK(device_data->vtable.WaitForFences(device_data->device,
-                                                    1, &queue_data->queries_fence,
-                                                    VK_FALSE, UINT64_MAX));
-
-         /* Now get the results. */
-         list_for_each_entry_safe(struct command_buffer_data, cmd_buffer_data,
-                                  &queue_data->running_command_buffer, link)
-         {
-            list_delinit(&cmd_buffer_data->link);
-
-            if (cmd_buffer_data->pipeline_query_pool)
-            {
-               memset(query_results, 0, sizeof(query_results));
-               VK_CHECK(device_data->vtable.GetQueryPoolResults(device_data->device,
-                                                                cmd_buffer_data->pipeline_query_pool,
-                                                                cmd_buffer_data->query_index, 1,
-                                                                sizeof(uint32_t) * OVERLAY_QUERY_COUNT,
-                                                                query_results, 0, VK_QUERY_RESULT_WAIT_BIT));
-
-               for (uint32_t i = OVERLAY_PARAM_ENABLED_vertices;
-                    i <= OVERLAY_PARAM_ENABLED_compute_invocations; i++)
-               {
-                  device_data->frame_stats.stats[i] += query_results[i - OVERLAY_PARAM_ENABLED_vertices];
-               }
-            }
-            if (cmd_buffer_data->timestamp_query_pool)
-            {
-               uint64_t gpu_timestamps[2] = {0};
-               VK_CHECK(device_data->vtable.GetQueryPoolResults(device_data->device,
-                                                                cmd_buffer_data->timestamp_query_pool,
-                                                                cmd_buffer_data->query_index * 2, 2,
-                                                                2 * sizeof(uint64_t), gpu_timestamps, sizeof(uint64_t),
-                                                                VK_QUERY_RESULT_WAIT_BIT | VK_QUERY_RESULT_64_BIT));
-
-               gpu_timestamps[0] &= queue_data->timestamp_mask;
-               gpu_timestamps[1] &= queue_data->timestamp_mask;
-               device_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_gpu_timing] +=
-                   (gpu_timestamps[1] - gpu_timestamps[0]) *
-                   device_data->properties.limits.timestampPeriod;
-            }
-         }
-      }
-
-      /* Otherwise we need to add our overlay drawing semaphore to the list of
-       * semaphores to wait on. If we don't do that the presented picture might
-       * be have incomplete overlay drawings.
+      /* Before getting the query results, make sure the operations have
+       * completed.
        */
-      VkResult result = VK_SUCCESS;
-      if (instance_data->params.no_display)
+      VK_CHECK(device_data->vtable.ResetFences(device_data->device,
+                                               1, &queue_data->queries_fence));
+      VK_CHECK(device_data->vtable.QueueSubmit(queue, 0, NULL, queue_data->queries_fence));
+      VK_CHECK(device_data->vtable.WaitForFences(device_data->device,
+                                                 1, &queue_data->queries_fence,
+                                                 VK_FALSE, UINT64_MAX));
+
+      /* Now get the results. */
+      list_for_each_entry_safe(struct command_buffer_data, cmd_buffer_data,
+                               &queue_data->running_command_buffer, link)
       {
-         for (uint32_t i = 0; i < pPresentInfo->swapchainCount; i++)
-         {
-            VkSwapchainKHR swapchain = pPresentInfo->pSwapchains[i];
-            struct swapchain_data *swapchain_data =
-                FIND(struct swapchain_data, swapchain);
+         list_delinit(&cmd_buffer_data->link);
 
-            uint32_t image_index = pPresentInfo->pImageIndices[i];
-
-            before_present(swapchain_data,
-                           queue_data,
-                           pPresentInfo->pWaitSemaphores,
-                           pPresentInfo->waitSemaphoreCount,
-                           image_index);
-
-            VkPresentInfoKHR present_info = *pPresentInfo;
-            present_info.swapchainCount = 1;
-            present_info.pSwapchains = &swapchain;
-            present_info.pImageIndices = &image_index;
-
-            uint64_t ts0 = os_time_get();
-            result = queue_data->device->vtable.QueuePresentKHR(queue, &present_info);
-            uint64_t ts1 = os_time_get();
-            swapchain_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_present_timing] += ts1 - ts0;
-         }
-      }
-      else
-      {
-         for (uint32_t i = 0; i < pPresentInfo->swapchainCount; i++)
-         {
-            VkSwapchainKHR swapchain = pPresentInfo->pSwapchains[i];
-            struct swapchain_data *swapchain_data =
-                FIND(struct swapchain_data, swapchain);
-
-            uint32_t image_index = pPresentInfo->pImageIndices[i];
-
-            VkPresentInfoKHR present_info = *pPresentInfo;
-            present_info.swapchainCount = 1;
-            present_info.pSwapchains = &swapchain;
-            present_info.pImageIndices = &image_index;
-
-            struct overlay_draw *draw = before_present(swapchain_data,
-                                                       queue_data,
-                                                       pPresentInfo->pWaitSemaphores,
-                                                       pPresentInfo->waitSemaphoreCount,
-                                                       image_index);
-
-            /* Because the submission of the overlay draw waits on the semaphores
-             * handed for present, we don't need to have this present operation
-             * wait on them as well, we can just wait on the overlay submission
-             * semaphore.
-             */
-            present_info.pWaitSemaphores = &draw->semaphore;
-            present_info.waitSemaphoreCount = 1;
-
-            uint64_t ts0 = os_time_get();
-            VkResult chain_result = queue_data->device->vtable.QueuePresentKHR(queue, &present_info);
-            uint64_t ts1 = os_time_get();
-            swapchain_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_present_timing] += ts1 - ts0;
-            if (pPresentInfo->pResults)
-               pPresentInfo->pResults[i] = chain_result;
-            if (chain_result != VK_SUCCESS && result == VK_SUCCESS)
-               result = chain_result;
-         }
-      }
-      return result;
-   }
-
-   static VkResult overlay_AcquireNextImageKHR(
-       VkDevice device,
-       VkSwapchainKHR swapchain,
-       uint64_t timeout,
-       VkSemaphore semaphore,
-       VkFence fence,
-       uint32_t * pImageIndex)
-   {
-      struct swapchain_data *swapchain_data =
-          FIND(struct swapchain_data, swapchain);
-      struct device_data *device_data = swapchain_data->device;
-
-      uint64_t ts0 = os_time_get();
-      VkResult result = device_data->vtable.AcquireNextImageKHR(device, swapchain, timeout,
-                                                                semaphore, fence, pImageIndex);
-      uint64_t ts1 = os_time_get();
-
-      swapchain_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_acquire_timing] += ts1 - ts0;
-      swapchain_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_acquire]++;
-
-      return result;
-   }
-
-   static VkResult overlay_AcquireNextImage2KHR(
-       VkDevice device,
-       const VkAcquireNextImageInfoKHR *pAcquireInfo,
-       uint32_t *pImageIndex)
-   {
-      struct swapchain_data *swapchain_data =
-          FIND(struct swapchain_data, pAcquireInfo->swapchain);
-      struct device_data *device_data = swapchain_data->device;
-
-      uint64_t ts0 = os_time_get();
-      VkResult result = device_data->vtable.AcquireNextImage2KHR(device, pAcquireInfo, pImageIndex);
-      uint64_t ts1 = os_time_get();
-
-      swapchain_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_acquire_timing] += ts1 - ts0;
-      swapchain_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_acquire]++;
-
-      return result;
-   }
-
-   static void overlay_CmdDraw(
-       VkCommandBuffer commandBuffer,
-       uint32_t vertexCount,
-       uint32_t instanceCount,
-       uint32_t firstVertex,
-       uint32_t firstInstance)
-   {
-      struct command_buffer_data *cmd_buffer_data =
-          FIND(struct command_buffer_data, commandBuffer);
-      cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_draw]++;
-      struct device_data *device_data = cmd_buffer_data->device;
-      device_data->vtable.CmdDraw(commandBuffer, vertexCount, instanceCount,
-                                  firstVertex, firstInstance);
-   }
-
-   static void overlay_CmdDrawIndexed(
-       VkCommandBuffer commandBuffer,
-       uint32_t indexCount,
-       uint32_t instanceCount,
-       uint32_t firstIndex,
-       int32_t vertexOffset,
-       uint32_t firstInstance)
-   {
-      struct command_buffer_data *cmd_buffer_data =
-          FIND(struct command_buffer_data, commandBuffer);
-      cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_draw_indexed]++;
-      struct device_data *device_data = cmd_buffer_data->device;
-      device_data->vtable.CmdDrawIndexed(commandBuffer, indexCount, instanceCount,
-                                         firstIndex, vertexOffset, firstInstance);
-   }
-
-   static void overlay_CmdDrawIndirect(
-       VkCommandBuffer commandBuffer,
-       VkBuffer buffer,
-       VkDeviceSize offset,
-       uint32_t drawCount,
-       uint32_t stride)
-   {
-      struct command_buffer_data *cmd_buffer_data =
-          FIND(struct command_buffer_data, commandBuffer);
-      cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_draw_indirect]++;
-      struct device_data *device_data = cmd_buffer_data->device;
-      device_data->vtable.CmdDrawIndirect(commandBuffer, buffer, offset, drawCount, stride);
-   }
-
-   static void overlay_CmdDrawIndexedIndirect(
-       VkCommandBuffer commandBuffer,
-       VkBuffer buffer,
-       VkDeviceSize offset,
-       uint32_t drawCount,
-       uint32_t stride)
-   {
-      struct command_buffer_data *cmd_buffer_data =
-          FIND(struct command_buffer_data, commandBuffer);
-      cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_draw_indexed_indirect]++;
-      struct device_data *device_data = cmd_buffer_data->device;
-      device_data->vtable.CmdDrawIndexedIndirect(commandBuffer, buffer, offset, drawCount, stride);
-   }
-
-   static void overlay_CmdDrawIndirectCount(
-       VkCommandBuffer commandBuffer,
-       VkBuffer buffer,
-       VkDeviceSize offset,
-       VkBuffer countBuffer,
-       VkDeviceSize countBufferOffset,
-       uint32_t maxDrawCount,
-       uint32_t stride)
-   {
-      struct command_buffer_data *cmd_buffer_data =
-          FIND(struct command_buffer_data, commandBuffer);
-      cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_draw_indirect_count]++;
-      struct device_data *device_data = cmd_buffer_data->device;
-      device_data->vtable.CmdDrawIndirectCount(commandBuffer, buffer, offset,
-                                               countBuffer, countBufferOffset,
-                                               maxDrawCount, stride);
-   }
-
-   static void overlay_CmdDrawIndexedIndirectCount(
-       VkCommandBuffer commandBuffer,
-       VkBuffer buffer,
-       VkDeviceSize offset,
-       VkBuffer countBuffer,
-       VkDeviceSize countBufferOffset,
-       uint32_t maxDrawCount,
-       uint32_t stride)
-   {
-      struct command_buffer_data *cmd_buffer_data =
-          FIND(struct command_buffer_data, commandBuffer);
-      cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_draw_indexed_indirect_count]++;
-      struct device_data *device_data = cmd_buffer_data->device;
-      device_data->vtable.CmdDrawIndexedIndirectCount(commandBuffer, buffer, offset,
-                                                      countBuffer, countBufferOffset,
-                                                      maxDrawCount, stride);
-   }
-
-   static void overlay_CmdDispatch(
-       VkCommandBuffer commandBuffer,
-       uint32_t groupCountX,
-       uint32_t groupCountY,
-       uint32_t groupCountZ)
-   {
-      struct command_buffer_data *cmd_buffer_data =
-          FIND(struct command_buffer_data, commandBuffer);
-      cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_dispatch]++;
-      struct device_data *device_data = cmd_buffer_data->device;
-      device_data->vtable.CmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
-   }
-
-   static void overlay_CmdDispatchIndirect(
-       VkCommandBuffer commandBuffer,
-       VkBuffer buffer,
-       VkDeviceSize offset)
-   {
-      struct command_buffer_data *cmd_buffer_data =
-          FIND(struct command_buffer_data, commandBuffer);
-      cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_dispatch_indirect]++;
-      struct device_data *device_data = cmd_buffer_data->device;
-      device_data->vtable.CmdDispatchIndirect(commandBuffer, buffer, offset);
-   }
-
-   static void overlay_CmdBindPipeline(
-       VkCommandBuffer commandBuffer,
-       VkPipelineBindPoint pipelineBindPoint,
-       VkPipeline pipeline)
-   {
-      struct command_buffer_data *cmd_buffer_data =
-          FIND(struct command_buffer_data, commandBuffer);
-      switch (pipelineBindPoint)
-      {
-      case VK_PIPELINE_BIND_POINT_GRAPHICS:
-         cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_pipeline_graphics]++;
-         break;
-      case VK_PIPELINE_BIND_POINT_COMPUTE:
-         cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_pipeline_compute]++;
-         break;
-      case VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR:
-         cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_pipeline_raytracing]++;
-         break;
-      default:
-         break;
-      }
-      struct device_data *device_data = cmd_buffer_data->device;
-      device_data->vtable.CmdBindPipeline(commandBuffer, pipelineBindPoint, pipeline);
-   }
-
-   static VkResult overlay_BeginCommandBuffer(
-       VkCommandBuffer commandBuffer,
-       const VkCommandBufferBeginInfo *pBeginInfo)
-   {
-      struct command_buffer_data *cmd_buffer_data =
-          FIND(struct command_buffer_data, commandBuffer);
-      struct device_data *device_data = cmd_buffer_data->device;
-
-      memset(&cmd_buffer_data->stats, 0, sizeof(cmd_buffer_data->stats));
-
-      /* We don't record any query in secondary command buffers, just make sure
-       * we have the right inheritance.
-       */
-      if (cmd_buffer_data->level == VK_COMMAND_BUFFER_LEVEL_SECONDARY)
-      {
-         VkCommandBufferBeginInfo begin_info = *pBeginInfo;
-
-         struct VkBaseOutStructure *new_pnext =
-             clone_chain((const struct VkBaseInStructure *)pBeginInfo->pNext);
-         VkCommandBufferInheritanceInfo inhe_info;
-
-         /* If there was no pNext chain given or we managed to copy it, we can
-          * add our stuff in there.
-          *
-          * Otherwise, keep the old pointer. We failed to copy the pNext chain,
-          * meaning there is an unknown extension somewhere in there.
-          */
-         if (new_pnext || pBeginInfo->pNext == NULL)
-         {
-            begin_info.pNext = new_pnext;
-
-            VkCommandBufferInheritanceInfo *parent_inhe_info = (VkCommandBufferInheritanceInfo *)
-                vk_find_struct(new_pnext, COMMAND_BUFFER_INHERITANCE_INFO);
-            inhe_info = (VkCommandBufferInheritanceInfo){
-                VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO,
-                NULL,
-                VK_NULL_HANDLE,
-                0,
-                VK_NULL_HANDLE,
-                VK_FALSE,
-                0,
-                overlay_query_flags,
-            };
-
-            if (parent_inhe_info)
-               parent_inhe_info->pipelineStatistics = overlay_query_flags;
-            else
-               __vk_append_struct(&begin_info, &inhe_info);
-         }
-
-         VkResult result = device_data->vtable.BeginCommandBuffer(
-             commandBuffer, &begin_info);
-
-         free_chain(new_pnext);
-
-         return result;
-      }
-
-      /* Otherwise record a begin query as first command. */
-      VkResult result = device_data->vtable.BeginCommandBuffer(commandBuffer, pBeginInfo);
-
-      if (result == VK_SUCCESS)
-      {
          if (cmd_buffer_data->pipeline_query_pool)
          {
-            device_data->vtable.CmdResetQueryPool(commandBuffer,
-                                                  cmd_buffer_data->pipeline_query_pool,
-                                                  cmd_buffer_data->query_index, 1);
+            memset(query_results, 0, sizeof(query_results));
+            VK_CHECK(device_data->vtable.GetQueryPoolResults(device_data->device,
+                                                             cmd_buffer_data->pipeline_query_pool,
+                                                             cmd_buffer_data->query_index, 1,
+                                                             sizeof(uint32_t) * OVERLAY_QUERY_COUNT,
+                                                             query_results, 0, VK_QUERY_RESULT_WAIT_BIT));
+
+            for (uint32_t i = OVERLAY_PARAM_ENABLED_vertices;
+                 i <= OVERLAY_PARAM_ENABLED_compute_invocations; i++)
+            {
+               device_data->frame_stats.stats[i] += query_results[i - OVERLAY_PARAM_ENABLED_vertices];
+            }
          }
          if (cmd_buffer_data->timestamp_query_pool)
          {
-            device_data->vtable.CmdResetQueryPool(commandBuffer,
-                                                  cmd_buffer_data->timestamp_query_pool,
-                                                  cmd_buffer_data->query_index * 2, 2);
-         }
-         if (cmd_buffer_data->pipeline_query_pool)
-         {
-            device_data->vtable.CmdBeginQuery(commandBuffer,
-                                              cmd_buffer_data->pipeline_query_pool,
-                                              cmd_buffer_data->query_index, 0);
-         }
-         if (cmd_buffer_data->timestamp_query_pool)
-         {
-            device_data->vtable.CmdWriteTimestamp(commandBuffer,
-                                                  VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                                                  cmd_buffer_data->timestamp_query_pool,
-                                                  cmd_buffer_data->query_index * 2);
+            uint64_t gpu_timestamps[2] = {0};
+            VK_CHECK(device_data->vtable.GetQueryPoolResults(device_data->device,
+                                                             cmd_buffer_data->timestamp_query_pool,
+                                                             cmd_buffer_data->query_index * 2, 2,
+                                                             2 * sizeof(uint64_t), gpu_timestamps, sizeof(uint64_t),
+                                                             VK_QUERY_RESULT_WAIT_BIT | VK_QUERY_RESULT_64_BIT));
+
+            gpu_timestamps[0] &= queue_data->timestamp_mask;
+            gpu_timestamps[1] &= queue_data->timestamp_mask;
+            device_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_gpu_timing] +=
+                (gpu_timestamps[1] - gpu_timestamps[0]) *
+                device_data->properties.limits.timestampPeriod;
          }
       }
+   }
+
+   /* Otherwise we need to add our overlay drawing semaphore to the list of
+    * semaphores to wait on. If we don't do that the presented picture might
+    * be have incomplete overlay drawings.
+    */
+   VkResult result = VK_SUCCESS;
+   if (instance_data->params.no_display)
+   {
+      for (uint32_t i = 0; i < pPresentInfo->swapchainCount; i++)
+      {
+         VkSwapchainKHR swapchain = pPresentInfo->pSwapchains[i];
+         struct swapchain_data *swapchain_data =
+             FIND(struct swapchain_data, swapchain);
+
+         uint32_t image_index = pPresentInfo->pImageIndices[i];
+
+         before_present(swapchain_data,
+                        queue_data,
+                        pPresentInfo->pWaitSemaphores,
+                        pPresentInfo->waitSemaphoreCount,
+                        image_index);
+
+         VkPresentInfoKHR present_info = *pPresentInfo;
+         present_info.swapchainCount = 1;
+         present_info.pSwapchains = &swapchain;
+         present_info.pImageIndices = &image_index;
+
+         uint64_t ts0 = os_time_get();
+         result = queue_data->device->vtable.QueuePresentKHR(queue, &present_info);
+         uint64_t ts1 = os_time_get();
+         swapchain_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_present_timing] += ts1 - ts0;
+      }
+   }
+   else
+   {
+      for (uint32_t i = 0; i < pPresentInfo->swapchainCount; i++)
+      {
+         VkSwapchainKHR swapchain = pPresentInfo->pSwapchains[i];
+         struct swapchain_data *swapchain_data =
+             FIND(struct swapchain_data, swapchain);
+
+         uint32_t image_index = pPresentInfo->pImageIndices[i];
+
+         VkPresentInfoKHR present_info = *pPresentInfo;
+         present_info.swapchainCount = 1;
+         present_info.pSwapchains = &swapchain;
+         present_info.pImageIndices = &image_index;
+
+         struct overlay_draw *draw = before_present(swapchain_data,
+                                                    queue_data,
+                                                    pPresentInfo->pWaitSemaphores,
+                                                    pPresentInfo->waitSemaphoreCount,
+                                                    image_index);
+
+         /* Because the submission of the overlay draw waits on the semaphores
+          * handed for present, we don't need to have this present operation
+          * wait on them as well, we can just wait on the overlay submission
+          * semaphore.
+          */
+         present_info.pWaitSemaphores = &draw->semaphore;
+         present_info.waitSemaphoreCount = 1;
+
+         uint64_t ts0 = os_time_get();
+         VkResult chain_result = queue_data->device->vtable.QueuePresentKHR(queue, &present_info);
+         uint64_t ts1 = os_time_get();
+         swapchain_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_present_timing] += ts1 - ts0;
+         if (pPresentInfo->pResults)
+            pPresentInfo->pResults[i] = chain_result;
+         if (chain_result != VK_SUCCESS && result == VK_SUCCESS)
+            result = chain_result;
+      }
+   }
+   return result;
+}
+
+static VkResult overlay_AcquireNextImageKHR(
+    VkDevice device,
+    VkSwapchainKHR swapchain,
+    uint64_t timeout,
+    VkSemaphore semaphore,
+    VkFence fence,
+    uint32_t *pImageIndex)
+{
+   struct swapchain_data *swapchain_data =
+       FIND(struct swapchain_data, swapchain);
+   struct device_data *device_data = swapchain_data->device;
+
+   uint64_t ts0 = os_time_get();
+   VkResult result = device_data->vtable.AcquireNextImageKHR(device, swapchain, timeout,
+                                                             semaphore, fence, pImageIndex);
+   uint64_t ts1 = os_time_get();
+
+   swapchain_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_acquire_timing] += ts1 - ts0;
+   swapchain_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_acquire]++;
+
+   return result;
+}
+
+static VkResult overlay_AcquireNextImage2KHR(
+    VkDevice device,
+    const VkAcquireNextImageInfoKHR *pAcquireInfo,
+    uint32_t *pImageIndex)
+{
+   struct swapchain_data *swapchain_data =
+       FIND(struct swapchain_data, pAcquireInfo->swapchain);
+   struct device_data *device_data = swapchain_data->device;
+
+   uint64_t ts0 = os_time_get();
+   VkResult result = device_data->vtable.AcquireNextImage2KHR(device, pAcquireInfo, pImageIndex);
+   uint64_t ts1 = os_time_get();
+
+   swapchain_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_acquire_timing] += ts1 - ts0;
+   swapchain_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_acquire]++;
+
+   return result;
+}
+
+static void overlay_CmdDraw(
+    VkCommandBuffer commandBuffer,
+    uint32_t vertexCount,
+    uint32_t instanceCount,
+    uint32_t firstVertex,
+    uint32_t firstInstance)
+{
+   struct command_buffer_data *cmd_buffer_data =
+       FIND(struct command_buffer_data, commandBuffer);
+   cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_draw]++;
+   struct device_data *device_data = cmd_buffer_data->device;
+   device_data->vtable.CmdDraw(commandBuffer, vertexCount, instanceCount,
+                               firstVertex, firstInstance);
+}
+
+static void overlay_CmdDrawIndexed(
+    VkCommandBuffer commandBuffer,
+    uint32_t indexCount,
+    uint32_t instanceCount,
+    uint32_t firstIndex,
+    int32_t vertexOffset,
+    uint32_t firstInstance)
+{
+   struct command_buffer_data *cmd_buffer_data =
+       FIND(struct command_buffer_data, commandBuffer);
+   cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_draw_indexed]++;
+   struct device_data *device_data = cmd_buffer_data->device;
+   device_data->vtable.CmdDrawIndexed(commandBuffer, indexCount, instanceCount,
+                                      firstIndex, vertexOffset, firstInstance);
+}
+
+static void overlay_CmdDrawIndirect(
+    VkCommandBuffer commandBuffer,
+    VkBuffer buffer,
+    VkDeviceSize offset,
+    uint32_t drawCount,
+    uint32_t stride)
+{
+   struct command_buffer_data *cmd_buffer_data =
+       FIND(struct command_buffer_data, commandBuffer);
+   cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_draw_indirect]++;
+   struct device_data *device_data = cmd_buffer_data->device;
+   device_data->vtable.CmdDrawIndirect(commandBuffer, buffer, offset, drawCount, stride);
+}
+
+static void overlay_CmdDrawIndexedIndirect(
+    VkCommandBuffer commandBuffer,
+    VkBuffer buffer,
+    VkDeviceSize offset,
+    uint32_t drawCount,
+    uint32_t stride)
+{
+   struct command_buffer_data *cmd_buffer_data =
+       FIND(struct command_buffer_data, commandBuffer);
+   cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_draw_indexed_indirect]++;
+   struct device_data *device_data = cmd_buffer_data->device;
+   device_data->vtable.CmdDrawIndexedIndirect(commandBuffer, buffer, offset, drawCount, stride);
+}
+
+static void overlay_CmdDrawIndirectCount(
+    VkCommandBuffer commandBuffer,
+    VkBuffer buffer,
+    VkDeviceSize offset,
+    VkBuffer countBuffer,
+    VkDeviceSize countBufferOffset,
+    uint32_t maxDrawCount,
+    uint32_t stride)
+{
+   struct command_buffer_data *cmd_buffer_data =
+       FIND(struct command_buffer_data, commandBuffer);
+   cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_draw_indirect_count]++;
+   struct device_data *device_data = cmd_buffer_data->device;
+   device_data->vtable.CmdDrawIndirectCount(commandBuffer, buffer, offset,
+                                            countBuffer, countBufferOffset,
+                                            maxDrawCount, stride);
+}
+
+static void overlay_CmdDrawIndexedIndirectCount(
+    VkCommandBuffer commandBuffer,
+    VkBuffer buffer,
+    VkDeviceSize offset,
+    VkBuffer countBuffer,
+    VkDeviceSize countBufferOffset,
+    uint32_t maxDrawCount,
+    uint32_t stride)
+{
+   struct command_buffer_data *cmd_buffer_data =
+       FIND(struct command_buffer_data, commandBuffer);
+   cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_draw_indexed_indirect_count]++;
+   struct device_data *device_data = cmd_buffer_data->device;
+   device_data->vtable.CmdDrawIndexedIndirectCount(commandBuffer, buffer, offset,
+                                                   countBuffer, countBufferOffset,
+                                                   maxDrawCount, stride);
+}
+
+static void overlay_CmdDispatch(
+    VkCommandBuffer commandBuffer,
+    uint32_t groupCountX,
+    uint32_t groupCountY,
+    uint32_t groupCountZ)
+{
+   struct command_buffer_data *cmd_buffer_data =
+       FIND(struct command_buffer_data, commandBuffer);
+   cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_dispatch]++;
+   struct device_data *device_data = cmd_buffer_data->device;
+   device_data->vtable.CmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
+}
+
+static void overlay_CmdDispatchIndirect(
+    VkCommandBuffer commandBuffer,
+    VkBuffer buffer,
+    VkDeviceSize offset)
+{
+   struct command_buffer_data *cmd_buffer_data =
+       FIND(struct command_buffer_data, commandBuffer);
+   cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_dispatch_indirect]++;
+   struct device_data *device_data = cmd_buffer_data->device;
+   device_data->vtable.CmdDispatchIndirect(commandBuffer, buffer, offset);
+}
+
+static void overlay_CmdBindPipeline(
+    VkCommandBuffer commandBuffer,
+    VkPipelineBindPoint pipelineBindPoint,
+    VkPipeline pipeline)
+{
+   struct command_buffer_data *cmd_buffer_data =
+       FIND(struct command_buffer_data, commandBuffer);
+   switch (pipelineBindPoint)
+   {
+   case VK_PIPELINE_BIND_POINT_GRAPHICS:
+      cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_pipeline_graphics]++;
+      break;
+   case VK_PIPELINE_BIND_POINT_COMPUTE:
+      cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_pipeline_compute]++;
+      break;
+   case VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR:
+      cmd_buffer_data->stats.stats[OVERLAY_PARAM_ENABLED_pipeline_raytracing]++;
+      break;
+   default:
+      break;
+   }
+   struct device_data *device_data = cmd_buffer_data->device;
+   device_data->vtable.CmdBindPipeline(commandBuffer, pipelineBindPoint, pipeline);
+}
+
+static VkResult overlay_BeginCommandBuffer(
+    VkCommandBuffer commandBuffer,
+    const VkCommandBufferBeginInfo *pBeginInfo)
+{
+   struct command_buffer_data *cmd_buffer_data =
+       FIND(struct command_buffer_data, commandBuffer);
+   struct device_data *device_data = cmd_buffer_data->device;
+
+   memset(&cmd_buffer_data->stats, 0, sizeof(cmd_buffer_data->stats));
+
+   /* We don't record any query in secondary command buffers, just make sure
+    * we have the right inheritance.
+    */
+   if (cmd_buffer_data->level == VK_COMMAND_BUFFER_LEVEL_SECONDARY)
+   {
+      VkCommandBufferBeginInfo begin_info = *pBeginInfo;
+
+      struct VkBaseOutStructure *new_pnext =
+          clone_chain((const struct VkBaseInStructure *)pBeginInfo->pNext);
+      VkCommandBufferInheritanceInfo inhe_info;
+
+      /* If there was no pNext chain given or we managed to copy it, we can
+       * add our stuff in there.
+       *
+       * Otherwise, keep the old pointer. We failed to copy the pNext chain,
+       * meaning there is an unknown extension somewhere in there.
+       */
+      if (new_pnext || pBeginInfo->pNext == NULL)
+      {
+         begin_info.pNext = new_pnext;
+
+         VkCommandBufferInheritanceInfo *parent_inhe_info = (VkCommandBufferInheritanceInfo *)
+             vk_find_struct(new_pnext, COMMAND_BUFFER_INHERITANCE_INFO);
+         inhe_info = (VkCommandBufferInheritanceInfo){
+             VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO,
+             NULL,
+             VK_NULL_HANDLE,
+             0,
+             VK_NULL_HANDLE,
+             VK_FALSE,
+             0,
+             overlay_query_flags,
+         };
+
+         if (parent_inhe_info)
+            parent_inhe_info->pipelineStatistics = overlay_query_flags;
+         else
+            __vk_append_struct(&begin_info, &inhe_info);
+      }
+
+      VkResult result = device_data->vtable.BeginCommandBuffer(
+          commandBuffer, &begin_info);
+
+      free_chain(new_pnext);
 
       return result;
    }
 
-   static VkResult overlay_EndCommandBuffer(
-       VkCommandBuffer commandBuffer)
-   {
-      struct command_buffer_data *cmd_buffer_data =
-          FIND(struct command_buffer_data, commandBuffer);
-      struct device_data *device_data = cmd_buffer_data->device;
+   /* Otherwise record a begin query as first command. */
+   VkResult result = device_data->vtable.BeginCommandBuffer(commandBuffer, pBeginInfo);
 
+   if (result == VK_SUCCESS)
+   {
+      if (cmd_buffer_data->pipeline_query_pool)
+      {
+         device_data->vtable.CmdResetQueryPool(commandBuffer,
+                                               cmd_buffer_data->pipeline_query_pool,
+                                               cmd_buffer_data->query_index, 1);
+      }
+      if (cmd_buffer_data->timestamp_query_pool)
+      {
+         device_data->vtable.CmdResetQueryPool(commandBuffer,
+                                               cmd_buffer_data->timestamp_query_pool,
+                                               cmd_buffer_data->query_index * 2, 2);
+      }
+      if (cmd_buffer_data->pipeline_query_pool)
+      {
+         device_data->vtable.CmdBeginQuery(commandBuffer,
+                                           cmd_buffer_data->pipeline_query_pool,
+                                           cmd_buffer_data->query_index, 0);
+      }
       if (cmd_buffer_data->timestamp_query_pool)
       {
          device_data->vtable.CmdWriteTimestamp(commandBuffer,
                                                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                                                cmd_buffer_data->timestamp_query_pool,
-                                               cmd_buffer_data->query_index * 2 + 1);
+                                               cmd_buffer_data->query_index * 2);
       }
-      if (cmd_buffer_data->pipeline_query_pool)
-      {
-         device_data->vtable.CmdEndQuery(commandBuffer,
-                                         cmd_buffer_data->pipeline_query_pool,
-                                         cmd_buffer_data->query_index);
-      }
-
-      return device_data->vtable.EndCommandBuffer(commandBuffer);
    }
 
-   static VkResult overlay_ResetCommandBuffer(
-       VkCommandBuffer commandBuffer,
-       VkCommandBufferResetFlags flags)
+   return result;
+}
+
+static VkResult overlay_EndCommandBuffer(
+    VkCommandBuffer commandBuffer)
+{
+   struct command_buffer_data *cmd_buffer_data =
+       FIND(struct command_buffer_data, commandBuffer);
+   struct device_data *device_data = cmd_buffer_data->device;
+
+   if (cmd_buffer_data->timestamp_query_pool)
    {
-      struct command_buffer_data *cmd_buffer_data =
-          FIND(struct command_buffer_data, commandBuffer);
-      struct device_data *device_data = cmd_buffer_data->device;
-
-      memset(&cmd_buffer_data->stats, 0, sizeof(cmd_buffer_data->stats));
-
-      return device_data->vtable.ResetCommandBuffer(commandBuffer, flags);
+      device_data->vtable.CmdWriteTimestamp(commandBuffer,
+                                            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                                            cmd_buffer_data->timestamp_query_pool,
+                                            cmd_buffer_data->query_index * 2 + 1);
+   }
+   if (cmd_buffer_data->pipeline_query_pool)
+   {
+      device_data->vtable.CmdEndQuery(commandBuffer,
+                                      cmd_buffer_data->pipeline_query_pool,
+                                      cmd_buffer_data->query_index);
    }
 
-   static void overlay_CmdExecuteCommands(
-       VkCommandBuffer commandBuffer,
-       uint32_t commandBufferCount,
-       const VkCommandBuffer *pCommandBuffers)
+   return device_data->vtable.EndCommandBuffer(commandBuffer);
+}
+
+static VkResult overlay_ResetCommandBuffer(
+    VkCommandBuffer commandBuffer,
+    VkCommandBufferResetFlags flags)
+{
+   struct command_buffer_data *cmd_buffer_data =
+       FIND(struct command_buffer_data, commandBuffer);
+   struct device_data *device_data = cmd_buffer_data->device;
+
+   memset(&cmd_buffer_data->stats, 0, sizeof(cmd_buffer_data->stats));
+
+   return device_data->vtable.ResetCommandBuffer(commandBuffer, flags);
+}
+
+static void overlay_CmdExecuteCommands(
+    VkCommandBuffer commandBuffer,
+    uint32_t commandBufferCount,
+    const VkCommandBuffer *pCommandBuffers)
+{
+   struct command_buffer_data *cmd_buffer_data =
+       FIND(struct command_buffer_data, commandBuffer);
+   struct device_data *device_data = cmd_buffer_data->device;
+
+   /* Add the stats of the executed command buffers to the primary one. */
+   for (uint32_t c = 0; c < commandBufferCount; c++)
    {
-      struct command_buffer_data *cmd_buffer_data =
-          FIND(struct command_buffer_data, commandBuffer);
-      struct device_data *device_data = cmd_buffer_data->device;
+      struct command_buffer_data *sec_cmd_buffer_data =
+          FIND(struct command_buffer_data, pCommandBuffers[c]);
 
-      /* Add the stats of the executed command buffers to the primary one. */
-      for (uint32_t c = 0; c < commandBufferCount; c++)
-      {
-         struct command_buffer_data *sec_cmd_buffer_data =
-             FIND(struct command_buffer_data, pCommandBuffers[c]);
-
-         for (uint32_t s = 0; s < OVERLAY_PARAM_ENABLED_MAX; s++)
-            cmd_buffer_data->stats.stats[s] += sec_cmd_buffer_data->stats.stats[s];
-      }
-
-      device_data->vtable.CmdExecuteCommands(commandBuffer, commandBufferCount, pCommandBuffers);
+      for (uint32_t s = 0; s < OVERLAY_PARAM_ENABLED_MAX; s++)
+         cmd_buffer_data->stats.stats[s] += sec_cmd_buffer_data->stats.stats[s];
    }
 
-   static VkResult overlay_AllocateCommandBuffers(
-       VkDevice device,
-       const VkCommandBufferAllocateInfo *pAllocateInfo,
-       VkCommandBuffer *pCommandBuffers)
-   {
-      struct device_data *device_data = FIND(struct device_data, device);
-      VkResult result =
-          device_data->vtable.AllocateCommandBuffers(device, pAllocateInfo, pCommandBuffers);
-      if (result != VK_SUCCESS)
-         return result;
+   device_data->vtable.CmdExecuteCommands(commandBuffer, commandBufferCount, pCommandBuffers);
+}
 
-      VkQueryPool pipeline_query_pool = VK_NULL_HANDLE;
-      VkQueryPool timestamp_query_pool = VK_NULL_HANDLE;
-      if (device_data->pipeline_statistics_enabled &&
-          pAllocateInfo->level == VK_COMMAND_BUFFER_LEVEL_PRIMARY)
-      {
-         VkQueryPoolCreateInfo pool_info = {
-             VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
-             NULL,
-             0,
-             VK_QUERY_TYPE_PIPELINE_STATISTICS,
-             pAllocateInfo->commandBufferCount,
-             overlay_query_flags,
-         };
-         VK_CHECK(device_data->vtable.CreateQueryPool(device_data->device, &pool_info,
-                                                      NULL, &pipeline_query_pool));
-      }
-      if (device_data->instance->params.enabled[OVERLAY_PARAM_ENABLED_gpu_timing])
-      {
-         VkQueryPoolCreateInfo pool_info = {
-             VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
-             NULL,
-             0,
-             VK_QUERY_TYPE_TIMESTAMP,
-             pAllocateInfo->commandBufferCount * 2,
-             0,
-         };
-         VK_CHECK(device_data->vtable.CreateQueryPool(device_data->device, &pool_info,
-                                                      NULL, &timestamp_query_pool));
-      }
-
-      for (uint32_t i = 0; i < pAllocateInfo->commandBufferCount; i++)
-      {
-         new_command_buffer_data(pCommandBuffers[i], pAllocateInfo->level,
-                                 pipeline_query_pool, timestamp_query_pool,
-                                 i, device_data);
-      }
-
-      if (pipeline_query_pool)
-         map_object(HKEY(pipeline_query_pool), (void *)(uintptr_t)pAllocateInfo->commandBufferCount);
-      if (timestamp_query_pool)
-         map_object(HKEY(timestamp_query_pool), (void *)(uintptr_t)pAllocateInfo->commandBufferCount);
-
+static VkResult overlay_AllocateCommandBuffers(
+    VkDevice device,
+    const VkCommandBufferAllocateInfo *pAllocateInfo,
+    VkCommandBuffer *pCommandBuffers)
+{
+   struct device_data *device_data = FIND(struct device_data, device);
+   VkResult result =
+       device_data->vtable.AllocateCommandBuffers(device, pAllocateInfo, pCommandBuffers);
+   if (result != VK_SUCCESS)
       return result;
+
+   VkQueryPool pipeline_query_pool = VK_NULL_HANDLE;
+   VkQueryPool timestamp_query_pool = VK_NULL_HANDLE;
+   if (device_data->pipeline_statistics_enabled &&
+       pAllocateInfo->level == VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+   {
+      VkQueryPoolCreateInfo pool_info = {
+          VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+          NULL,
+          0,
+          VK_QUERY_TYPE_PIPELINE_STATISTICS,
+          pAllocateInfo->commandBufferCount,
+          overlay_query_flags,
+      };
+      VK_CHECK(device_data->vtable.CreateQueryPool(device_data->device, &pool_info,
+                                                   NULL, &pipeline_query_pool));
+   }
+   if (device_data->instance->params.enabled[OVERLAY_PARAM_ENABLED_gpu_timing])
+   {
+      VkQueryPoolCreateInfo pool_info = {
+          VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+          NULL,
+          0,
+          VK_QUERY_TYPE_TIMESTAMP,
+          pAllocateInfo->commandBufferCount * 2,
+          0,
+      };
+      VK_CHECK(device_data->vtable.CreateQueryPool(device_data->device, &pool_info,
+                                                   NULL, &timestamp_query_pool));
    }
 
-   static void overlay_FreeCommandBuffers(
-       VkDevice device,
-       VkCommandPool commandPool,
-       uint32_t commandBufferCount,
-       const VkCommandBuffer *pCommandBuffers)
+   for (uint32_t i = 0; i < pAllocateInfo->commandBufferCount; i++)
    {
-      struct device_data *device_data = FIND(struct device_data, device);
-      for (uint32_t i = 0; i < commandBufferCount; i++)
+      new_command_buffer_data(pCommandBuffers[i], pAllocateInfo->level,
+                              pipeline_query_pool, timestamp_query_pool,
+                              i, device_data);
+   }
+
+   if (pipeline_query_pool)
+      map_object(HKEY(pipeline_query_pool), (void *)(uintptr_t)pAllocateInfo->commandBufferCount);
+   if (timestamp_query_pool)
+      map_object(HKEY(timestamp_query_pool), (void *)(uintptr_t)pAllocateInfo->commandBufferCount);
+
+   return result;
+}
+
+static void overlay_FreeCommandBuffers(
+    VkDevice device,
+    VkCommandPool commandPool,
+    uint32_t commandBufferCount,
+    const VkCommandBuffer *pCommandBuffers)
+{
+   struct device_data *device_data = FIND(struct device_data, device);
+   for (uint32_t i = 0; i < commandBufferCount; i++)
+   {
+      struct command_buffer_data *cmd_buffer_data =
+          FIND(struct command_buffer_data, pCommandBuffers[i]);
+
+      /* It is legal to free a NULL command buffer*/
+      if (!cmd_buffer_data)
+         continue;
+
+      uint64_t count = (uintptr_t)find_object_data(HKEY(cmd_buffer_data->pipeline_query_pool));
+      if (count == 1)
+      {
+         unmap_object(HKEY(cmd_buffer_data->pipeline_query_pool));
+         device_data->vtable.DestroyQueryPool(device_data->device,
+                                              cmd_buffer_data->pipeline_query_pool, NULL);
+      }
+      else if (count != 0)
+      {
+         map_object(HKEY(cmd_buffer_data->pipeline_query_pool), (void *)(uintptr_t)(count - 1));
+      }
+      count = (uintptr_t)find_object_data(HKEY(cmd_buffer_data->timestamp_query_pool));
+      if (count == 1)
+      {
+         unmap_object(HKEY(cmd_buffer_data->timestamp_query_pool));
+         device_data->vtable.DestroyQueryPool(device_data->device,
+                                              cmd_buffer_data->timestamp_query_pool, NULL);
+      }
+      else if (count != 0)
+      {
+         map_object(HKEY(cmd_buffer_data->timestamp_query_pool), (void *)(uintptr_t)(count - 1));
+      }
+      destroy_command_buffer_data(cmd_buffer_data);
+   }
+
+   device_data->vtable.FreeCommandBuffers(device, commandPool,
+                                          commandBufferCount, pCommandBuffers);
+}
+
+static VkResult overlay_QueueSubmit(
+    VkQueue queue,
+    uint32_t submitCount,
+    const VkSubmitInfo *pSubmits,
+    VkFence fence)
+{
+   struct queue_data *queue_data = FIND(struct queue_data, queue);
+   struct device_data *device_data = queue_data->device;
+
+   device_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_submit]++;
+
+   for (uint32_t s = 0; s < submitCount; s++)
+   {
+      for (uint32_t c = 0; c < pSubmits[s].commandBufferCount; c++)
       {
          struct command_buffer_data *cmd_buffer_data =
-             FIND(struct command_buffer_data, pCommandBuffers[i]);
+             FIND(struct command_buffer_data, pSubmits[s].pCommandBuffers[c]);
 
-         /* It is legal to free a NULL command buffer*/
-         if (!cmd_buffer_data)
+         /* Merge the submitted command buffer stats into the device. */
+         for (uint32_t st = 0; st < OVERLAY_PARAM_ENABLED_MAX; st++)
+            device_data->frame_stats.stats[st] += cmd_buffer_data->stats.stats[st];
+
+         /* Attach the command buffer to the queue so we remember to read its
+          * pipeline statistics & timestamps at QueuePresent().
+          */
+         if (!cmd_buffer_data->pipeline_query_pool &&
+             !cmd_buffer_data->timestamp_query_pool)
             continue;
 
-         uint64_t count = (uintptr_t)find_object_data(HKEY(cmd_buffer_data->pipeline_query_pool));
-         if (count == 1)
+         if (list_is_empty(&cmd_buffer_data->link))
          {
-            unmap_object(HKEY(cmd_buffer_data->pipeline_query_pool));
-            device_data->vtable.DestroyQueryPool(device_data->device,
-                                                 cmd_buffer_data->pipeline_query_pool, NULL);
-         }
-         else if (count != 0)
-         {
-            map_object(HKEY(cmd_buffer_data->pipeline_query_pool), (void *)(uintptr_t)(count - 1));
-         }
-         count = (uintptr_t)find_object_data(HKEY(cmd_buffer_data->timestamp_query_pool));
-         if (count == 1)
-         {
-            unmap_object(HKEY(cmd_buffer_data->timestamp_query_pool));
-            device_data->vtable.DestroyQueryPool(device_data->device,
-                                                 cmd_buffer_data->timestamp_query_pool, NULL);
-         }
-         else if (count != 0)
-         {
-            map_object(HKEY(cmd_buffer_data->timestamp_query_pool), (void *)(uintptr_t)(count - 1));
-         }
-         destroy_command_buffer_data(cmd_buffer_data);
-      }
-
-      device_data->vtable.FreeCommandBuffers(device, commandPool,
-                                             commandBufferCount, pCommandBuffers);
-   }
-
-   static VkResult overlay_QueueSubmit(
-       VkQueue queue,
-       uint32_t submitCount,
-       const VkSubmitInfo *pSubmits,
-       VkFence fence)
-   {
-      struct queue_data *queue_data = FIND(struct queue_data, queue);
-      struct device_data *device_data = queue_data->device;
-
-      device_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_submit]++;
-
-      for (uint32_t s = 0; s < submitCount; s++)
-      {
-         for (uint32_t c = 0; c < pSubmits[s].commandBufferCount; c++)
-         {
-            struct command_buffer_data *cmd_buffer_data =
-                FIND(struct command_buffer_data, pSubmits[s].pCommandBuffers[c]);
-
-            /* Merge the submitted command buffer stats into the device. */
-            for (uint32_t st = 0; st < OVERLAY_PARAM_ENABLED_MAX; st++)
-               device_data->frame_stats.stats[st] += cmd_buffer_data->stats.stats[st];
-
-            /* Attach the command buffer to the queue so we remember to read its
-             * pipeline statistics & timestamps at QueuePresent().
-             */
-            if (!cmd_buffer_data->pipeline_query_pool &&
-                !cmd_buffer_data->timestamp_query_pool)
-               continue;
-
-            if (list_is_empty(&cmd_buffer_data->link))
-            {
-               list_addtail(&cmd_buffer_data->link,
-                            &queue_data->running_command_buffer);
-            }
-            else
-            {
-               fprintf(stderr, "Command buffer submitted multiple times before present.\n"
-                               "This could lead to invalid data.\n");
-            }
-         }
-      }
-
-      return device_data->vtable.QueueSubmit(queue, submitCount, pSubmits, fence);
-   }
-
-   static VkResult overlay_QueueSubmit2KHR(
-       VkQueue queue,
-       uint32_t submitCount,
-       const VkSubmitInfo2 *pSubmits,
-       VkFence fence)
-   {
-      struct queue_data *queue_data = FIND(struct queue_data, queue);
-      struct device_data *device_data = queue_data->device;
-
-      device_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_submit]++;
-
-      for (uint32_t s = 0; s < submitCount; s++)
-      {
-         for (uint32_t c = 0; c < pSubmits[s].commandBufferInfoCount; c++)
-         {
-            struct command_buffer_data *cmd_buffer_data =
-                FIND(struct command_buffer_data, pSubmits[s].pCommandBufferInfos[c].commandBuffer);
-
-            /* Merge the submitted command buffer stats into the device. */
-            for (uint32_t st = 0; st < OVERLAY_PARAM_ENABLED_MAX; st++)
-               device_data->frame_stats.stats[st] += cmd_buffer_data->stats.stats[st];
-
-            /* Attach the command buffer to the queue so we remember to read its
-             * pipeline statistics & timestamps at QueuePresent().
-             */
-            if (!cmd_buffer_data->pipeline_query_pool &&
-                !cmd_buffer_data->timestamp_query_pool)
-               continue;
-
-            if (list_is_empty(&cmd_buffer_data->link))
-            {
-               list_addtail(&cmd_buffer_data->link,
-                            &queue_data->running_command_buffer);
-            }
-            else
-            {
-               fprintf(stderr, "Command buffer submitted multiple times before present.\n"
-                               "This could lead to invalid data.\n");
-            }
-         }
-      }
-
-      return device_data->vtable.QueueSubmit2KHR(queue, submitCount, pSubmits, fence);
-   }
-
-   static VkResult overlay_CreateDevice(
-       VkPhysicalDevice physicalDevice,
-       const VkDeviceCreateInfo *pCreateInfo,
-       const VkAllocationCallbacks *pAllocator,
-       VkDevice *pDevice)
-   {
-      struct instance_data *instance_data =
-          FIND(struct instance_data, physicalDevice);
-      VkLayerDeviceCreateInfo *chain_info =
-          get_device_chain_info(pCreateInfo, VK_LAYER_LINK_INFO);
-
-      assert(chain_info->u.pLayerInfo);
-      PFN_vkGetInstanceProcAddr fpGetInstanceProcAddr = chain_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
-      PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr = chain_info->u.pLayerInfo->pfnNextGetDeviceProcAddr;
-      PFN_vkCreateDevice fpCreateDevice = (PFN_vkCreateDevice)fpGetInstanceProcAddr(NULL, "vkCreateDevice");
-      if (fpCreateDevice == NULL)
-      {
-         return VK_ERROR_INITIALIZATION_FAILED;
-      }
-      client.start = 0;
-      client.client_start = 0;
-
-      // Advance the link info for the next element on the chain
-      chain_info->u.pLayerInfo = chain_info->u.pLayerInfo->pNext;
-
-      VkPhysicalDeviceFeatures device_features = {};
-      VkPhysicalDeviceFeatures *device_features_ptr = NULL;
-
-      VkDeviceCreateInfo create_info = *pCreateInfo;
-
-      struct VkBaseOutStructure *new_pnext =
-          clone_chain((const struct VkBaseInStructure *)pCreateInfo->pNext);
-      if (new_pnext != NULL)
-      {
-         create_info.pNext = new_pnext;
-
-         VkPhysicalDeviceFeatures2 *device_features2 = (VkPhysicalDeviceFeatures2 *)
-             vk_find_struct(new_pnext, PHYSICAL_DEVICE_FEATURES_2);
-         if (device_features2)
-         {
-            /* Can't use device_info->pEnabledFeatures when VkPhysicalDeviceFeatures2 is present */
-            device_features_ptr = &device_features2->features;
+            list_addtail(&cmd_buffer_data->link,
+                         &queue_data->running_command_buffer);
          }
          else
          {
-            if (create_info.pEnabledFeatures)
-               device_features = *(create_info.pEnabledFeatures);
-            device_features_ptr = &device_features;
-            create_info.pEnabledFeatures = &device_features;
+            fprintf(stderr, "Command buffer submitted multiple times before present.\n"
+                            "This could lead to invalid data.\n");
          }
+      }
+   }
 
-         if (instance_data->pipeline_statistics_enabled)
+   return device_data->vtable.QueueSubmit(queue, submitCount, pSubmits, fence);
+}
+
+static VkResult overlay_QueueSubmit2KHR(
+    VkQueue queue,
+    uint32_t submitCount,
+    const VkSubmitInfo2 *pSubmits,
+    VkFence fence)
+{
+   struct queue_data *queue_data = FIND(struct queue_data, queue);
+   struct device_data *device_data = queue_data->device;
+
+   device_data->frame_stats.stats[OVERLAY_PARAM_ENABLED_submit]++;
+
+   for (uint32_t s = 0; s < submitCount; s++)
+   {
+      for (uint32_t c = 0; c < pSubmits[s].commandBufferInfoCount; c++)
+      {
+         struct command_buffer_data *cmd_buffer_data =
+             FIND(struct command_buffer_data, pSubmits[s].pCommandBufferInfos[c].commandBuffer);
+
+         /* Merge the submitted command buffer stats into the device. */
+         for (uint32_t st = 0; st < OVERLAY_PARAM_ENABLED_MAX; st++)
+            device_data->frame_stats.stats[st] += cmd_buffer_data->stats.stats[st];
+
+         /* Attach the command buffer to the queue so we remember to read its
+          * pipeline statistics & timestamps at QueuePresent().
+          */
+         if (!cmd_buffer_data->pipeline_query_pool &&
+             !cmd_buffer_data->timestamp_query_pool)
+            continue;
+
+         if (list_is_empty(&cmd_buffer_data->link))
          {
-            device_features_ptr->inheritedQueries = true;
-            device_features_ptr->pipelineStatisticsQuery = true;
+            list_addtail(&cmd_buffer_data->link,
+                         &queue_data->running_command_buffer);
          }
-      }
-
-      VkResult result = fpCreateDevice(physicalDevice, &create_info, pAllocator, pDevice);
-      free_chain(new_pnext);
-      if (result != VK_SUCCESS)
-         return result;
-
-      struct device_data *device_data = new_device_data(*pDevice, instance_data);
-      device_data->physical_device = physicalDevice;
-      vk_device_dispatch_table_load(&device_data->vtable,
-                                    fpGetDeviceProcAddr, *pDevice);
-
-      instance_data->pd_vtable.GetPhysicalDeviceProperties(device_data->physical_device,
-                                                           &device_data->properties);
-
-      VkLayerDeviceCreateInfo *load_data_info =
-          get_device_chain_info(pCreateInfo, VK_LOADER_DATA_CALLBACK);
-      device_data->set_device_loader_data = load_data_info->u.pfnSetDeviceLoaderData;
-
-      device_map_queues(device_data, pCreateInfo);
-
-      device_data->pipeline_statistics_enabled =
-          new_pnext != NULL &&
-          instance_data->pipeline_statistics_enabled;
-
-      return result;
-   }
-
-   static void overlay_DestroyDevice(
-       VkDevice device,
-       const VkAllocationCallbacks *pAllocator)
-   {
-      struct device_data *device_data = FIND(struct device_data, device);
-      device_unmap_queues(device_data);
-      device_data->vtable.DestroyDevice(device, pAllocator);
-      destroy_device_data(device_data);
-   }
-
-   static VkResult overlay_CreateInstance(
-       const VkInstanceCreateInfo *pCreateInfo,
-       const VkAllocationCallbacks *pAllocator,
-       VkInstance *pInstance)
-   {
-      VkLayerInstanceCreateInfo *chain_info =
-          get_instance_chain_info(pCreateInfo, VK_LAYER_LINK_INFO);
-
-      assert(chain_info->u.pLayerInfo);
-      PFN_vkGetInstanceProcAddr fpGetInstanceProcAddr =
-          chain_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
-      PFN_vkCreateInstance fpCreateInstance =
-          (PFN_vkCreateInstance)fpGetInstanceProcAddr(NULL, "vkCreateInstance");
-      if (fpCreateInstance == NULL)
-      {
-         return VK_ERROR_INITIALIZATION_FAILED;
-      }
-
-      // Advance the link info for the next element on the chain
-      chain_info->u.pLayerInfo = chain_info->u.pLayerInfo->pNext;
-
-      VkResult result = fpCreateInstance(pCreateInfo, pAllocator, pInstance);
-      if (result != VK_SUCCESS)
-         return result;
-
-      struct instance_data *instance_data = new_instance_data(*pInstance);
-      vk_instance_dispatch_table_load(&instance_data->vtable,
-                                      fpGetInstanceProcAddr,
-                                      instance_data->instance);
-      vk_physical_device_dispatch_table_load(&instance_data->pd_vtable,
-                                             fpGetInstanceProcAddr,
-                                             instance_data->instance);
-      instance_data_map_physical_devices(instance_data, true);
-
-      // map(&players);
-      std::string cmd = "cat /proc/$(pidof cs2)/maps | grep libclient | grep 0000000";
-      std::string res = exec(cmd.c_str());
-      if (res.length() > 8)
-      {
-         std::string addr;
-         addr = res.substr(0, 12);
-         client.start = stoul(addr, 0, 16);
-      }
-      parse_overlay_env(&instance_data->params, getenv("VK_LAYER_MESA_OVERLAY_CONFIG"));
-
-      /* If there's no control file, and an output_file was specified, start
-       * capturing fps data right away.
-       */
-      instance_data->capture_enabled =
-          instance_data->params.output_file && instance_data->params.control < 0;
-      instance_data->capture_started = instance_data->capture_enabled;
-      if (instance_data->params.control < 0)
-      {
-         printf("listening @kickflip");
-         instance_data->params.control = 1;
-         // int err = os_socket_listen_abstract("\0kickflip", 100);
-         int err = 0;
-         if (err < 0)
-            printf("aw fuck");
-      }
-
-      for (int i = OVERLAY_PARAM_ENABLED_vertices;
-           i <= OVERLAY_PARAM_ENABLED_compute_invocations; i++)
-      {
-         if (instance_data->params.enabled[i])
+         else
          {
-            instance_data->pipeline_statistics_enabled = true;
-            break;
+            fprintf(stderr, "Command buffer submitted multiple times before present.\n"
+                            "This could lead to invalid data.\n");
          }
       }
+   }
 
+   return device_data->vtable.QueueSubmit2KHR(queue, submitCount, pSubmits, fence);
+}
+
+static VkResult overlay_CreateDevice(
+    VkPhysicalDevice physicalDevice,
+    const VkDeviceCreateInfo *pCreateInfo,
+    const VkAllocationCallbacks *pAllocator,
+    VkDevice *pDevice)
+{
+   struct instance_data *instance_data =
+       FIND(struct instance_data, physicalDevice);
+   VkLayerDeviceCreateInfo *chain_info =
+       get_device_chain_info(pCreateInfo, VK_LAYER_LINK_INFO);
+
+   assert(chain_info->u.pLayerInfo);
+   PFN_vkGetInstanceProcAddr fpGetInstanceProcAddr = chain_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
+   PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr = chain_info->u.pLayerInfo->pfnNextGetDeviceProcAddr;
+   PFN_vkCreateDevice fpCreateDevice = (PFN_vkCreateDevice)fpGetInstanceProcAddr(NULL, "vkCreateDevice");
+   if (fpCreateDevice == NULL)
+   {
+      return VK_ERROR_INITIALIZATION_FAILED;
+   }
+   client.start = 0;
+   client.client_start = 0;
+
+   // Advance the link info for the next element on the chain
+   chain_info->u.pLayerInfo = chain_info->u.pLayerInfo->pNext;
+
+   VkPhysicalDeviceFeatures device_features = {};
+   VkPhysicalDeviceFeatures *device_features_ptr = NULL;
+
+   VkDeviceCreateInfo create_info = *pCreateInfo;
+
+   struct VkBaseOutStructure *new_pnext =
+       clone_chain((const struct VkBaseInStructure *)pCreateInfo->pNext);
+   if (new_pnext != NULL)
+   {
+      create_info.pNext = new_pnext;
+
+      VkPhysicalDeviceFeatures2 *device_features2 = (VkPhysicalDeviceFeatures2 *)
+          vk_find_struct(new_pnext, PHYSICAL_DEVICE_FEATURES_2);
+      if (device_features2)
+      {
+         /* Can't use device_info->pEnabledFeatures when VkPhysicalDeviceFeatures2 is present */
+         device_features_ptr = &device_features2->features;
+      }
+      else
+      {
+         if (create_info.pEnabledFeatures)
+            device_features = *(create_info.pEnabledFeatures);
+         device_features_ptr = &device_features;
+         create_info.pEnabledFeatures = &device_features;
+      }
+
+      if (instance_data->pipeline_statistics_enabled)
+      {
+         device_features_ptr->inheritedQueries = true;
+         device_features_ptr->pipelineStatisticsQuery = true;
+      }
+   }
+
+   VkResult result = fpCreateDevice(physicalDevice, &create_info, pAllocator, pDevice);
+   free_chain(new_pnext);
+   if (result != VK_SUCCESS)
       return result;
+
+   struct device_data *device_data = new_device_data(*pDevice, instance_data);
+   device_data->physical_device = physicalDevice;
+   vk_device_dispatch_table_load(&device_data->vtable,
+                                 fpGetDeviceProcAddr, *pDevice);
+
+   instance_data->pd_vtable.GetPhysicalDeviceProperties(device_data->physical_device,
+                                                        &device_data->properties);
+
+   VkLayerDeviceCreateInfo *load_data_info =
+       get_device_chain_info(pCreateInfo, VK_LOADER_DATA_CALLBACK);
+   device_data->set_device_loader_data = load_data_info->u.pfnSetDeviceLoaderData;
+
+   device_map_queues(device_data, pCreateInfo);
+
+   device_data->pipeline_statistics_enabled =
+       new_pnext != NULL &&
+       instance_data->pipeline_statistics_enabled;
+
+   return result;
+}
+
+static void overlay_DestroyDevice(
+    VkDevice device,
+    const VkAllocationCallbacks *pAllocator)
+{
+   struct device_data *device_data = FIND(struct device_data, device);
+   device_unmap_queues(device_data);
+   device_data->vtable.DestroyDevice(device, pAllocator);
+   destroy_device_data(device_data);
+}
+
+static VkResult overlay_CreateInstance(
+    const VkInstanceCreateInfo *pCreateInfo,
+    const VkAllocationCallbacks *pAllocator,
+    VkInstance *pInstance)
+{
+   VkLayerInstanceCreateInfo *chain_info =
+       get_instance_chain_info(pCreateInfo, VK_LAYER_LINK_INFO);
+
+   assert(chain_info->u.pLayerInfo);
+   PFN_vkGetInstanceProcAddr fpGetInstanceProcAddr =
+       chain_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
+   PFN_vkCreateInstance fpCreateInstance =
+       (PFN_vkCreateInstance)fpGetInstanceProcAddr(NULL, "vkCreateInstance");
+   if (fpCreateInstance == NULL)
+   {
+      return VK_ERROR_INITIALIZATION_FAILED;
    }
 
-   static void overlay_DestroyInstance(
-       VkInstance instance,
-       const VkAllocationCallbacks *pAllocator)
+   // Advance the link info for the next element on the chain
+   chain_info->u.pLayerInfo = chain_info->u.pLayerInfo->pNext;
+
+   VkResult result = fpCreateInstance(pCreateInfo, pAllocator, pInstance);
+   if (result != VK_SUCCESS)
+      return result;
+
+   struct instance_data *instance_data = new_instance_data(*pInstance);
+   vk_instance_dispatch_table_load(&instance_data->vtable,
+                                   fpGetInstanceProcAddr,
+                                   instance_data->instance);
+   vk_physical_device_dispatch_table_load(&instance_data->pd_vtable,
+                                          fpGetInstanceProcAddr,
+                                          instance_data->instance);
+   instance_data_map_physical_devices(instance_data, true);
+
+   // map(&players);
+   std::string cmd = "cat /proc/$(pidof cs2)/maps | grep libclient | grep 0000000";
+   std::string res = exec(cmd.c_str());
+   if (res.length() > 8)
    {
-      struct instance_data *instance_data = FIND(struct instance_data, instance);
-      instance_data_map_physical_devices(instance_data, false);
-      instance_data->vtable.DestroyInstance(instance, pAllocator);
-      destroy_instance_data(instance_data);
-      unmap(&players);
+      std::string addr;
+      addr = res.substr(0, 12);
+      client.start = stoul(addr, 0, 16);
+   }
+   parse_overlay_env(&instance_data->params, getenv("VK_LAYER_MESA_OVERLAY_CONFIG"));
+
+   /* If there's no control file, and an output_file was specified, start
+    * capturing fps data right away.
+    */
+   instance_data->capture_enabled =
+       instance_data->params.output_file && instance_data->params.control < 0;
+   instance_data->capture_started = instance_data->capture_enabled;
+   if (instance_data->params.control < 0)
+   {
+      printf("listening @kickflip");
+      instance_data->params.control = 1;
+      // int err = os_socket_listen_abstract("\0kickflip", 100);
+      int err = 0;
+      if (err < 0)
+         printf("aw fuck");
    }
 
-   static const struct
+   for (int i = OVERLAY_PARAM_ENABLED_vertices;
+        i <= OVERLAY_PARAM_ENABLED_compute_invocations; i++)
    {
-      const char *name;
-      void *ptr;
-   } name_to_funcptr_map[] = {
-       {"vkGetInstanceProcAddr", (void *)vkGetInstanceProcAddr},
-       {"vkGetDeviceProcAddr", (void *)vkGetDeviceProcAddr},
-#define ADD_HOOK(fn) \
-   {                 \
-       "vk" #fn, (void *)overlay_##fn}
+      if (instance_data->params.enabled[i])
+      {
+         instance_data->pipeline_statistics_enabled = true;
+         break;
+      }
+   }
+
+   return result;
+}
+
+static void overlay_DestroyInstance(
+    VkInstance instance,
+    const VkAllocationCallbacks *pAllocator)
+{
+   struct instance_data *instance_data = FIND(struct instance_data, instance);
+   instance_data_map_physical_devices(instance_data, false);
+   instance_data->vtable.DestroyInstance(instance, pAllocator);
+   destroy_instance_data(instance_data);
+   unmap(&players);
+}
+
+static const struct
+{
+   const char *name;
+   void *ptr;
+} name_to_funcptr_map[] = {
+    {"vkGetInstanceProcAddr", (void *)vkGetInstanceProcAddr},
+    {"vkGetDeviceProcAddr", (void *)vkGetDeviceProcAddr},
+#define ADD_HOOK(fn)                 \
+   {                                 \
+      "vk" #fn, (void *)overlay_##fn \
+   }
 #define ADD_ALIAS_HOOK(alias, fn)       \
    {                                    \
       "vk" #alias, (void *)overlay_##fn \
    }
-       ADD_HOOK(AllocateCommandBuffers),
-       ADD_HOOK(FreeCommandBuffers),
-       ADD_HOOK(ResetCommandBuffer),
-       ADD_HOOK(BeginCommandBuffer),
-       ADD_HOOK(EndCommandBuffer),
-       ADD_HOOK(CmdExecuteCommands),
+    ADD_HOOK(AllocateCommandBuffers),
+    ADD_HOOK(FreeCommandBuffers),
+    ADD_HOOK(ResetCommandBuffer),
+    ADD_HOOK(BeginCommandBuffer),
+    ADD_HOOK(EndCommandBuffer),
+    ADD_HOOK(CmdExecuteCommands),
 
-       ADD_HOOK(CmdDraw),
-       ADD_HOOK(CmdDrawIndexed),
-       ADD_HOOK(CmdDrawIndirect),
-       ADD_HOOK(CmdDrawIndexedIndirect),
-       ADD_HOOK(CmdDispatch),
-       ADD_HOOK(CmdDispatchIndirect),
-       ADD_HOOK(CmdDrawIndirectCount),
-       ADD_ALIAS_HOOK(CmdDrawIndirectCountKHR, CmdDrawIndirectCount),
-       ADD_HOOK(CmdDrawIndexedIndirectCount),
-       ADD_ALIAS_HOOK(CmdDrawIndexedIndirectCountKHR, CmdDrawIndexedIndirectCount),
+    ADD_HOOK(CmdDraw),
+    ADD_HOOK(CmdDrawIndexed),
+    ADD_HOOK(CmdDrawIndirect),
+    ADD_HOOK(CmdDrawIndexedIndirect),
+    ADD_HOOK(CmdDispatch),
+    ADD_HOOK(CmdDispatchIndirect),
+    ADD_HOOK(CmdDrawIndirectCount),
+    ADD_ALIAS_HOOK(CmdDrawIndirectCountKHR, CmdDrawIndirectCount),
+    ADD_HOOK(CmdDrawIndexedIndirectCount),
+    ADD_ALIAS_HOOK(CmdDrawIndexedIndirectCountKHR, CmdDrawIndexedIndirectCount),
 
-       ADD_HOOK(CmdBindPipeline),
+    ADD_HOOK(CmdBindPipeline),
 
-       ADD_HOOK(CreateSwapchainKHR),
-       ADD_HOOK(QueuePresentKHR),
-       ADD_HOOK(DestroySwapchainKHR),
-       ADD_HOOK(AcquireNextImageKHR),
-       ADD_HOOK(AcquireNextImage2KHR),
+    ADD_HOOK(CreateSwapchainKHR),
+    ADD_HOOK(QueuePresentKHR),
+    ADD_HOOK(DestroySwapchainKHR),
+    ADD_HOOK(AcquireNextImageKHR),
+    ADD_HOOK(AcquireNextImage2KHR),
 
-       ADD_HOOK(QueueSubmit),
-       ADD_HOOK(QueueSubmit2KHR),
+    ADD_HOOK(QueueSubmit),
+    ADD_HOOK(QueueSubmit2KHR),
 
-       ADD_HOOK(CreateDevice),
-       ADD_HOOK(DestroyDevice),
+    ADD_HOOK(CreateDevice),
+    ADD_HOOK(DestroyDevice),
 
-       ADD_HOOK(CreateInstance),
-       ADD_HOOK(DestroyInstance),
+    ADD_HOOK(CreateInstance),
+    ADD_HOOK(DestroyInstance),
 #undef ADD_HOOK
 #undef ADD_ALIAS_HOOK
-   };
+};
 
-   static void *find_ptr(const char *name)
+static void *find_ptr(const char *name)
+{
+   for (uint32_t i = 0; i < ARRAY_SIZE(name_to_funcptr_map); i++)
    {
-      for (uint32_t i = 0; i < ARRAY_SIZE(name_to_funcptr_map); i++)
-      {
-         if (strcmp(name, name_to_funcptr_map[i].name) == 0)
-            return name_to_funcptr_map[i].ptr;
-      }
+      if (strcmp(name, name_to_funcptr_map[i].name) == 0)
+         return name_to_funcptr_map[i].ptr;
+   }
 
+   return NULL;
+}
+
+PUBLIC VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice dev,
+                                                                    const char *funcName)
+{
+   void *ptr = find_ptr(funcName);
+   if (ptr)
+      return reinterpret_cast<PFN_vkVoidFunction>(ptr);
+
+   if (dev == NULL)
       return NULL;
-   }
 
-   PUBLIC VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice dev,
-                                                                       const char *funcName)
-   {
-      void *ptr = find_ptr(funcName);
-      if (ptr)
-         return reinterpret_cast<PFN_vkVoidFunction>(ptr);
+   struct device_data *device_data = FIND(struct device_data, dev);
+   if (device_data->vtable.GetDeviceProcAddr == NULL)
+      return NULL;
+   return device_data->vtable.GetDeviceProcAddr(dev, funcName);
+}
 
-      if (dev == NULL)
-         return NULL;
+PUBLIC VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance,
+                                                                      const char *funcName)
+{
+   void *ptr = find_ptr(funcName);
+   if (ptr)
+      return reinterpret_cast<PFN_vkVoidFunction>(ptr);
 
-      struct device_data *device_data = FIND(struct device_data, dev);
-      if (device_data->vtable.GetDeviceProcAddr == NULL)
-         return NULL;
-      return device_data->vtable.GetDeviceProcAddr(dev, funcName);
-   }
+   if (instance == NULL)
+      return NULL;
 
-   PUBLIC VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance,
-                                                                         const char *funcName)
-   {
-      void *ptr = find_ptr(funcName);
-      if (ptr)
-         return reinterpret_cast<PFN_vkVoidFunction>(ptr);
-
-      if (instance == NULL)
-         return NULL;
-
-      struct instance_data *instance_data = FIND(struct instance_data, instance);
-      if (instance_data->vtable.GetInstanceProcAddr == NULL)
-         return NULL;
-      return instance_data->vtable.GetInstanceProcAddr(instance, funcName);
-   }
+   struct instance_data *instance_data = FIND(struct instance_data, instance);
+   if (instance_data->vtable.GetInstanceProcAddr == NULL)
+      return NULL;
+   return instance_data->vtable.GetInstanceProcAddr(instance, funcName);
+}
