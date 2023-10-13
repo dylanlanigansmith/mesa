@@ -31,20 +31,39 @@ endforeach
 
 vklayer_files = files(
   'overlay.cpp',
+  'kickflip/sdk/sdk.cpp',
+  'kickflip/sdk/getvar.cpp',
   'overlay_params.c',
-  'map.c',
-  'world2screen.cpp',
-  'hack.cpp'
+  'kickflip/mem/memory.cpp',
+  'kickflip/input/input.cpp',
+  'kickflip/frame.cpp',
+  'kickflip/mem/pointer.cpp',
+  'kickflip/mem/virtual.cpp',
+  'kickflip/schema/schemasystem.cpp',
+  'kickflip/schema/schemamgr.cpp',
+  'kickflip/newframe.cpp',
+  'kickflip/utils.cpp',
+  'kickflip/sdk/enginetrace.cpp',
+  'kickflip/sdk/sdk.cpp',
+  'kickflip/ESP/esp.cpp',
+  'kickflip/sdk/types/CHandle.cpp',
+  'kickflip/cfg/config.cpp',
+  'kickflip/GUI/gui.cpp',
+  'kickflip/sdk/interface/IEngineClient.cpp',
+  'kickflip/mouse/mouse.cpp',
+  'kickflip/AIM/aim.cpp',
+  'kickflip/sdk/classes/classes.cpp'
+  
 )
-
+#no_override_init_args
 vklayer_mesa_overlay = shared_library(
   'VkLayer_MESA_overlay',
   vklayer_files, overlay_spv, sha1_h,
-  c_args : [no_override_init_args],
+  c_args : [],
   gnu_symbol_visibility : 'hidden',
   dependencies : [idep_vulkan_util, idep_mesautil, vulkan_wsi_deps, libimgui_core_dep, dep_dl],
   include_directories : [inc_include, inc_src],
-  link_args : cc.get_supported_link_arguments(['-Wl,-Bsymbolic-functions', '-Wl,-z,relro']),
+  link_args : cc.get_supported_link_arguments(['-Wl,-Bsymbolic-functions', '-Wl,-z,relro -lX11']),
   install : true
 )
 

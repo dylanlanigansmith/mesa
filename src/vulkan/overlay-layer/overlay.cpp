@@ -24,17 +24,31 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <X11/Xlib.h>
+#include <linux/input.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+
+#include <poll.h>
+#include <signal.h>
+
+#include <filesystem>
+#include <string_view>
+#include <unistd.h>
+#include <stdio.h>
+#include <malloc.h>
 #include <memory>
 #include <stdexcept>
 #include <array>
 #include <cstdio>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vk_layer.h>
-
+#include <vector>
+#include <sstream>
 #include "git_sha1.h"
-
+#include <iomanip>
 #include "imgui.h"
-
+#include <thread>
 #include "overlay_params.h"
 
 #include "util/u_debug.h"
@@ -49,13 +63,24 @@
 #include "vk_enum_to_str.h"
 #include "vk_dispatch_table.h"
 #include "vk_util.h"
-#include "map.h"
-#include "world2screen.hpp"
-#include "hack.hpp"
 
-static struct shared *players;
 
-static MapModuleMemoryRegion client;
+//KF EXTERN
+
+#include "kickflip/s2_types.hpp"
+#include "kickflip/frame.hpp"
+
+
+
+
+
+
+
+
+
+
+
+
 /* Mapped from VkInstace/VkPhysicalDevice */
 struct instance_data
 {
@@ -975,7 +1000,7 @@ static void position_layer(struct swapchain_data *data)
 
    ImGui::SetNextWindowBgAlpha(0.5);
    ImGui::SetNextWindowSize(data->window_size, ImGuiCond_Always);
-   switch (instance_data->params.position)
+   switch (LAYER_POSITION_TOP_RIGHT)
    {
    case LAYER_POSITION_TOP_LEFT:
       ImGui::SetNextWindowPos(ImVec2(margin, margin), ImGuiCond_Always);
@@ -995,17 +1020,41 @@ static void position_layer(struct swapchain_data *data)
       break;
    }
 }
-#define ENT_OFFSET 0x3519268
-#define HEALTH_OFFSET 0x988
-#define PAWN_OFFSET 0x97c // wrong from here on
-#define TEAM_OFFSET 0x880 // m_iTeamNum 0x537
 
-#define dwSanitizedName 0x790 // 0x7f666efdb38c +0x4
-#define m_vecOrigin 0x1214
-#define VIEW_MATRIX 0x37174A0
+//GLOBALS " "
 
-#define LocalPlayerController 0x36693F8 // 0x237B7E8 or 37168b0
-#define isDefusing 0x1330 
+
+
+/*
+ *
+ **(_QWORD *)*(&PlantedC4 + 1) 0x37265C0
+ *
+ *planted_c4_state = read<bool>(client_base + planted_c4_offset - 0x8)
+ *planted_c4 = read<C_PlantedC4>(read<ptr>(read<ptr>(client_base + planted_c4_offset)))
+ *48 8B 0D ? ? ? ? 48 8B 19 49 8B 0E
+
+
+if (*(bool*)(client + PlantedC4)){
+   uintptr_t decoy = *(uintptr_t* )(client + plantedC4 + 0x8)
+   if(decoy){
+      uintptr_t PlantedC4Ptr = *(uintptr_t* )(decoy);
+      if(!PlantedC4Ptr)
+         continue;
+      uintptr_t PlantedC4 = *(uintptr_t* )(PlantedC4Ptr);
+      if(PlantedC4){
+         float TotalTimer = *(float*)(PlantedC4 + 0x430)
+         float PlantedTimestamp = *(float*)(PlantedC4 + 0x434);
+         C4Entity = *(uintptr_t* )(PlantedC4 + 0x30);
+         if(!C4Entity)
+            continue;
+         Vector3 C4Position = *(Vector3)(C4Entity + 0x70)
+      }
+
+   }
+}
+
+ *
+ */
 std::string exec(const char *cmd)
 {
    std::array<char, 128> buffer;
@@ -1014,6 +1063,7 @@ std::string exec(const char *cmd)
    if (!pipe)
    {
       throw std::runtime_error("popen() failed!");
+      result = "okok";
    }
    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
    {
@@ -1040,201 +1090,74 @@ removes local file
 
 
 */
+// const char* cmd = "cat /proc/$(pidof cs2)/maps | grep libclient | grep 0000000";
+// https://zerosum0x0.blogspot.com/2017/08/obfuscatedencrypted-cc-online-string.html
+std::string getCmd()
+{
+   unsigned char s[] =
+       {
+
+           0x72, 0x9e, 0x15, 0x9b, 0xf8, 0xbd, 0x1, 0x3c,
+           0x74, 0x38, 0x75, 0xad, 0x7b, 0xb1, 0xf3, 0x3e,
+           0x6c, 0x18, 0xee, 0xce, 0x2, 0x29, 0x7c, 0xc,
+           0x64, 0xb6, 0x11, 0x99, 0xa1, 0x19, 0xe9, 0x44,
+           0x7e, 0xc4, 0x63, 0x3d, 0x67, 0x99, 0xeb, 0x3e,
+           0x68, 0xc0, 0xfe, 0xca, 0xe4, 0x5d, 0x64, 0x36,
+           0x7c, 0xc2, 0x0, 0x9f, 0xfe, 0x3f, 0x7e, 0xbe,
+           0x1, 0x42, 0x81, 0xe1};
+
+   for (unsigned int m = 0; m < sizeof(s); ++m)
+   {
+      unsigned char c = s[m];
+      c += 0xfa;
+      c = (c >> 0x6) | (c << 0x2);
+      c = -c;
+      c ^= m;
+      c -= 0xff;
+      c = (c >> 0x6) | (c << 0x2);
+      c = -c;
+      c = ~c;
+      c -= 0x7;
+      c = ~c;
+      c = -c;
+      c += 0xa8;
+      c = ~c;
+      c = (c >> 0x5) | (c << 0x3);
+      c += 0x7b;
+      s[m] = c;
+   }
+
+   return std::string(s, s + sizeof(s) / sizeof(s[0]));
+}
+
+
+
+
 static void compute_swapchain_display(struct swapchain_data *data)
 {
    struct device_data *device_data = data->device;
    struct instance_data *instance_data = device_data->instance;
-
    ImGui::SetCurrentContext(data->imgui_context);
    ImGui::NewFrame();
    position_layer(data);
-   ImGui::Begin("Kickflip 2.0.5");
-   if (client.start == 0)
-   {
-
-      client.start = 0;
-
-      // std::string cmd = "cat /proc/" + proc.pidStr + "/maps | grep libclient | grep 0000000";
-      std::string cmd = "cat /proc/$(pidof cs2)/maps | grep libclient | grep 0000000";
-      std::string res = exec(cmd.c_str());
-      if (res.length() > 8)
-      {
-         std::string addr;
-         addr = res.substr(0, 12);
-         client.start = stoul(addr, 0, 16); // this probably doesnt run...
-      }
-   }
-   client.client_start = client.start;
-
-   ImGui::Text("FPS: %i", int(data->fps));
+  // ImGui::Begin("Kickflip 2.0.5");
+   //position_layer(data);
+  // 
+  if(kf != nullptr)
+    kf->NewFrame(data->imgui_context, data->fps, data->window_size, ImVec2(data->width, data->height));
+  // data->window_size = ImVec2(data->window_size.x, ImGui::GetCursorPosY() + 10.0f);
+  // ImGui::End();
+   //data->window_size = ImVec2(data->window_size, (kf->menuOpen) ? (ImGui::GetCursorPosY() + 400.0f) : (ImGui::GetCursorPosY() + 10.0f));
    
-   ImGui::Text("status: %s", (client.client_start > 0 ? "ok" : "bad"));
-   if (client.start != 0 && data->fps > 100)
-   { // bad
-      uintptr_t LocalPlayer = *(uintptr_t *)(client.client_start + LocalPlayerController);
-      // uintptr_t LocalPlayer = 0;
-
-      if (!LocalPlayer )
-      {
-
-         ImGui::Text("loading...");
-         goto null;
-      }
-
-      uintptr_t entity_list = *(uintptr_t *)(client.client_start + ENT_OFFSET);
-      if (entity_list)
-      {
-       
-         view_matrix_t matrix = *(view_matrix_t *)(client.client_start + VIEW_MATRIX);
-         for (int i = 1; i < 32; i++)
-         {
-            //  std::cout << i << ",  ";
-            LocalPlayer = *(uintptr_t *)(client.client_start + LocalPlayerController);
-            if(!LocalPlayer)
-               continue;
-             
-            uintptr_t list_entry = *(uintptr_t *)(entity_list + (8 * (i & 0x7FFF) >> 9) + 16);
-            if (!list_entry)
-               continue;
-            uintptr_t player = *(uintptr_t *)(list_entry + 120 * (i & 0x1FF));
-            if (!player)
-               continue;
-            // if(player == LocalPlayer)
-            //  continue;
-
-            int health = *(int *)((player + HEALTH_OFFSET));
-           
-            // int health = *(int *)((player + HEALTH_OFFSET));
-            if (!(health >= 0) || (health > 100)) // bad
-               continue;
-            //
-            // int localteam = *(int *)((LocalPlayer + TEAM_OFFSET));
-
-            // if(localteam != 2 || localteam != 3)
-            //    continue;
-
-            int team = *(int *)((player + TEAM_OFFSET));
-           
-             if (team < 0)
-               continue;
-            if (team > 3)
-               continue;
-            bool isLocalPlayer = false; //*(bool *)(player + isLocalPlayerController);
-            if (!LocalPlayer)
-               continue;
-            if (!entity_list)
-               continue;
-            if (player == LocalPlayer)
-               continue;
-             
-            char name[256];
-            if ((char *)(player + dwSanitizedName) == nullptr)
-               continue;
-            //name = (char*)(player + dwSanitizedName);
-           // memcpy(name, (char *)(player + dwSanitizedName), sizeof(char) * 256); // issue
-            //std::string name_str = name;
-            //if (name_str.length() < 1)
-              // continue;
-           
-            
-
-            
-
-            // if (name_str.find("dude") != std::string::npos && name_str.find("car") != std::string::npos)
-            //   isLocalPlayer = true;
-
-            uint32_t playerpawn = *(uint32_t *)((player + PAWN_OFFSET));
-            
-            uintptr_t list_entry2 = *(uintptr_t *)(entity_list + 0x8 * ((playerpawn & 0x7FFF) >> 9) + 16);
-            if (!list_entry2)
-               continue;
-            uintptr_t CSPlayerPawn = *(uintptr_t *)(list_entry2 + 120 * (playerpawn & 0x1FF));
-            if (!CSPlayerPawn)
-               continue;
-
-             /*  
-             if (isLocalPlayer)
-               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 230, 0, 255)); // do with elifs idiot
-            if (team == 2 && !isLocalPlayer)
-               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(230, 100, 0, 255));
-            else if (team == 3 && !isLocalPlayer)
-               ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 100, 255, 255));
-            ImGui::Text("%i | %s", health, "E");
-            ImGui::PopStyleColor(); */
-           
-            if (health == 0)
-               continue;
-            uint8_t is_defusing = 0;   
-            if(team == 3 && CSPlayerPawn){
-               is_defusing = *(uint8_t*)(CSPlayerPawn + isDefusing); 
-            }
-         //   if (CSPlayerPawn == LocalPlayer)
-             //  continue;
-            Vector3 origin = *(Vector3 *)(CSPlayerPawn + m_vecOrigin); // issue
-            if (origin.x == 0.f || origin.y == 0.f || origin.z == 0.f)
-               continue;
-
-           
-            Vector2 bounds;
-            bounds.x = data->width; // draw_data->DisplaySize.x
-            bounds.y = data->height;
-            Vector3 head;
-            head.x = origin.x;
-            head.y = origin.y;
-            head.z = origin.z - 60.f; // + 75.f
-            Vector3 screen = WorldToScreen(bounds, origin, matrix);
-            Vector3 screenhead = WorldToScreen(bounds, head, matrix);
-
-            // ImGui::Text("(x,y,z)): %f,%f,%f", origin.x, origin.y, origin.z);
-            //  ImGui::Text("(x,y,w)): %f,%f,%f", screen.x, screen.y, screen.z);
-            LocalPlayer = *(uintptr_t *)(client.client_start + LocalPlayerController);
-            if(!LocalPlayer)
-               continue;
-            int local_health = *(int *)((LocalPlayer + HEALTH_OFFSET));
-            int local_team = *(int *)((LocalPlayer + TEAM_OFFSET));
-            
-            if(local_health == 0 && team == local_team)
-               continue;
-            // ImGui::GetOverlayDrawList()->AddCircle(ImVec2(screen.x, screen.y), screen.z, ImGui::ColorConvertFloat4ToU32(ImVec4(1, 0, 0, 1)), 8);
-            // x, y            x + w, y + h  //int x, int y, int w, int h,
-            if (screen.z < 0.01f)
-               continue;
-
-            float h = screen.y - screenhead.y;
-            float w = h / 2.4f;
-            float x = screenhead.x - w / 2;
-            float y = screenhead.y;
-            if (w > (0.4f * bounds.x))
-               continue;
-           
-            if( ((y + y + h) < 5) )
-               continue;
-            ImVec4 box_color =  ImVec4(1,1,1,1);
-            if(team == 3 && is_defusing)
-               box_color = ImVec4(1, 100.f / 255.0f, 0, 1);
-            else if (team == 3 && !is_defusing)
-             box_color = ImVec4(114.0f / 255.0f, 200.0f / 255.0f, 220.0f / 255.0f, 1); //155
-            else if(team == 2)
-               box_color = ImVec4(242.0f / 255.0f, 117.0f / 255.0f, 210.f / 255.0f, 1);
-            ImGui::GetOverlayDrawList()->AddRect(ImVec2(x, y), ImVec2(x + w, y + h), ImGui::ColorConvertFloat4ToU32(box_color), 0.2, 0, 1); // thickness
-
-            std::string utf_8_1 = std::to_string(health); // fuck utf
-            float hp_mod = health * 2.25f;
-
-            ImGui::GetOverlayDrawList()->AddText(ImVec2(x, y), ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, 1)), utf_8_1.c_str());
-
-            // https://www.unknowncheats.me/forum/general-programming-and-reversing/432465-imgui-drawing.html
-            // https://github.com/UnnamedZ03/CS2-external-base/blob/main/source/Source.cpp
-         }
-      }
-   }
-goto null;
-null:
-   data->window_size = ImVec2(data->window_size.x, ImGui::GetCursorPosY() + 10.0f);
-   ImGui::End();
    ImGui::EndFrame();
    ImGui::Render();
+   
+
+   
 }
+
+
+
 
 static uint32_t vk_memory_type(struct device_data *data,
                                VkMemoryPropertyFlags properties,
@@ -2809,8 +2732,7 @@ static VkResult overlay_CreateDevice(
    {
       return VK_ERROR_INITIALIZATION_FAILED;
    }
-   client.start = 0;
-   client.client_start = 0;
+   
 
    // Advance the link info for the next element on the chain
    chain_info->u.pLayerInfo = chain_info->u.pLayerInfo->pNext;
@@ -2919,14 +2841,13 @@ static VkResult overlay_CreateInstance(
    instance_data_map_physical_devices(instance_data, true);
 
    // map(&players);
-   std::string cmd = "cat /proc/$(pidof cs2)/maps | grep libclient | grep 0000000";
-   std::string res = exec(cmd.c_str());
-   if (res.length() > 8)
-   {
-      std::string addr;
-      addr = res.substr(0, 12);
-      client.start = stoul(addr, 0, 16);
-   }
+   // std::string cmd = xorstr("cat /proc/$(pidof cs2)/maps | grep libclient | grep 0000000");
+ // kf = nullptr;
+   kf = new KickFlip();
+
+   kf->Initialize();
+   
+   
    parse_overlay_env(&instance_data->params, getenv("VK_LAYER_MESA_OVERLAY_CONFIG"));
 
    /* If there's no control file, and an output_file was specified, start
@@ -2937,12 +2858,9 @@ static VkResult overlay_CreateInstance(
    instance_data->capture_started = instance_data->capture_enabled;
    if (instance_data->params.control < 0)
    {
-      printf("listening @kickflip");
-      instance_data->params.control = 1;
+      // printf("listening @kickflip");
+      instance_data->params.control = 0; //god dont break 10.05
       // int err = os_socket_listen_abstract("\0kickflip", 100);
-      int err = 0;
-      if (err < 0)
-         printf("aw fuck");
    }
 
    for (int i = OVERLAY_PARAM_ENABLED_vertices;
@@ -2962,11 +2880,12 @@ static void overlay_DestroyInstance(
     VkInstance instance,
     const VkAllocationCallbacks *pAllocator)
 {
+   delete kf;
    struct instance_data *instance_data = FIND(struct instance_data, instance);
    instance_data_map_physical_devices(instance_data, false);
    instance_data->vtable.DestroyInstance(instance, pAllocator);
    destroy_instance_data(instance_data);
-   unmap(&players);
+   
 }
 
 static const struct

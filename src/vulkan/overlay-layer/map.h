@@ -17,21 +17,10 @@ extern "C" {
 #define DEVICE_FILE "/dev/flipover"
 #define PAGE_SIZE 4096
 
-struct Vector3
-{
-  float x, y, z; //fuck it we get the napkin out
-};
 
-struct Vector2{
-  float x,y;
-};
-struct view_matrix_t
-{
-  float matrix[4][4];
-};
 struct player
 {
-  struct Vector3 pos;
+ 
   int health;
   int team;
   char name[128];
@@ -45,7 +34,7 @@ enum {
 struct shared
 {
   struct player players[32];
-  struct view_matrix_t matrix;
+ 
   int state;
 };
 static int fd;
