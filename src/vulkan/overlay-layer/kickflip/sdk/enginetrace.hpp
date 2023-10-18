@@ -18,7 +18,7 @@
  *  E8 ? ? ? ? 41 89 45 28 
  * 
  * 
- * 0x34CDE30 EngineTracePtr 
+ * 0x34CDE30 EngineTracePtr  48 8D 05 ? ? ? ? 31 F6 4C 89 E7 4C 8B 38
  * 
  * 0x03673000 EngineTrace
  * 
@@ -26,22 +26,23 @@
  * TraceShape((__int64 *)EngineTracePtr, (__int64)&v23, (float *)&v19, (__int64)&v21, (__int64)v27, (__int64)v35);
 */
                                 //__int64 __fastcall GetHandleFromEntity(__int64)
-typedef uintptr_t __attribute__((fastcall)) (*GetHandleFromEntityFn)(uintptr_t);
+typedef uint64_t  __attribute__((fastcall)) (*GetHandleFromEntityFn)(uintptr_t);
 #define HANDLEFROM_OFFSET 0xBDB510
 
                         // __int64 __fastcall GetSurfaceData(__int64 a1)
 typedef uintptr_t __attribute__((fastcall)) (*GetSurfaceDataFn)(uintptr_t);
-#define SURFACEDATA_OFFSET 0xBDBD70
+#define SURFACEDATA_OFFSET 0xBDD0B0
 
 //__int64 __fastcall TraceShape(__int64 *a1, __int64 a2, float *i, __int64 a4, __int64 a5, __int64 a6)  
 //typedef uintptr_t __attribute__((fastcall)) (*TraceShapeFn)(uintptr_t*, uintptr_t, float*, uintptr_t, uintptr_t, uintptr_t);
 
 
-#define TRACESHAPE_OFFSET 0xBDC2A0 //these are all fucked
+#define TRACESHAPE_OFFSET 0x0BDD5E0 //these are all fucked
 
-#define ENGINETRACE_OFFSET 0x03673000
-#define ENGINETRACEPTR_OFFSET 0x34CDE30
+#define ENGINETRACE_OFFSET 0x03678000
+#define ENGINETRACEPTR_OFFSET  0x0034D2E30
 
+extern uint64_t GetHandleFromEntityRebuilt(uintptr_t a1);
 
 struct C_Ray {
     Vector3 Start;
@@ -82,7 +83,7 @@ struct C_Ray {
     }
 
     void* Surface;
-    uintptr_t* HitEntity; //CSPlayerPawn
+    uintptr_t HitEntity; //CSPlayerPawn
     C_TraceHitboxData* HitboxData;
     PAD_CLASS(0x10);
     std::uint32_t Contents;
@@ -127,3 +128,10 @@ class EngineTrace{
 
 //(uintptr_t*, C_Ray*, Vector3*, Vector3*, C_TraceFilter*, C_GameTrace*)
 typedef uintptr_t __attribute__((fastcall)) (*TraceShapeFn)(uintptr_t*, C_Ray*, Vector3*, Vector3*, C_TraceFilter*, C_GameTrace*);
+
+/* 
+// Vector3 endPos = Util::MultiplyScalar(Util::fromAngle(viewangles), 400.f); //kf->Log("og:", endPos);
+https://www.unknowncheats.me/forum/counter-strike-2-a/577666-tracing.html
+*/ 
+
+ //(uintptr_t*, uintptr_t, float*, uintptr_t, uintptr_t, uintptr_t); //(uintptr_t*, C_Ray*, Vector3*, Vector3*, C_TraceFilter*, C_GameTrace*)

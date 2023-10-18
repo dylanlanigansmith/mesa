@@ -119,11 +119,49 @@ std::string Util::GetUserSetting(const char* cv){
    return std::string(set);
 }
 
+
+uintptr_t Util::VisibilityTrace(C_GameTrace* trace, Vector3* startPos, Vector3* endPos, uintptr_t handle){
+
+   uintptr_t addr = 0;
+      addr = kf->GetMem()->GetModule(CLIENT_LIBX)->start ;
+     if(addr == 0){
+        return 1;
+     }
+      //Set Up Ray
+      C_Ray ray;   
+      Vector3 zero; zero.x = 0.f; zero.y = 0.f; zero.z = 0.f;
+      ray.UnkType = 0; ray.Start = ray.End = ray.Mins = ray.Maxs = zero;
+      TraceShapeFn TraceShape = (TraceShapeFn)(addr + kf->TraceShape());
+      uintptr_t etp = *(uintptr_t*)(addr + kf->EngineTracePtr());
+      uintptr_t* EngineTracePtr = (uintptr_t*)(etp);
+      
+                                 //Mask for visibility 
+      C_TraceFilter filter((uint32_t)0x1C3003, handle, 0, 4); 
+      uintptr_t ret = TraceShape(EngineTracePtr, &ray, startPos, endPos, &filter, trace);
+
+      return ret;
+}
+
+
+
+
+
+
+
+
+
 Vector3 Util::AddVector3(const Vector3 a, const Vector3 b){
 		Vector3 ret;
 		ret.x = a.x + b.x;
 		ret.y = a.y + b.y;
 		ret.z = a.z + b.z;
+      return ret;
+	}
+Vector3 Util::SubVector3(const Vector3 a, const Vector3 b){
+		Vector3 ret;
+		ret.x = a.x - b.x;
+		ret.y = a.y - b.y;
+		ret.z = a.z - b.z;
       return ret;
 	}
 

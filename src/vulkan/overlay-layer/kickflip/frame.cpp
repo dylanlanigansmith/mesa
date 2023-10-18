@@ -15,7 +15,13 @@ KickFlip::KickFlip(){
     version = xs(KFVERSION);
     //gotta be a better way
   
-   
+   foundOffsets = false;
+   LocalPlayerOffset = 0;
+   EntListOffset = 0;
+   TraceShapeOffset = 0;
+   EngineTracePtrOffset = 0;
+   ViewMatrixOffset = 0;
+   PlantedC4Offset = 0;
     
 }
 KickFlip::~KickFlip(){
@@ -26,7 +32,7 @@ KickFlip::~KickFlip(){
     delete off;
 }
 bool KickFlip::Initialize(){
-    in = new InputManager();
+    in = nullptr;
     mem = new Memory();
     mem->Initialize();
     off = new VarMgr();
@@ -35,7 +41,7 @@ bool KickFlip::Initialize(){
     v_mouse = new mousetrap();
     Log(v_mouse->err);
     ok = true;
-
+    stateChangeLastFrame = false;
     return true;
 }
 
@@ -76,6 +82,12 @@ void KickFlip::addLog(std::string log, uint8_t type){
     logs.push_back(getLogPrefix(type) + log); 
     if(logs.size() > MAX_LOGS)
         logs.erase(logs.begin());
+}
+void KickFlip::DebugState(std::string str, uintptr_t hex){
+     char buf[128];
+    sprintf(buf, ": 0x%lx", hex);
+    debug =  str + buf;
+
 }
 void KickFlip::Log(std::string msg, uint8_t type){
     

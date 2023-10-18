@@ -46,7 +46,7 @@
 #define FOV 90
 #define xc(c) xs(c).c_str()
 
-#define KFVERSION "2.1.0v9-1"
+#define KFVERSION "2.2.0 early"
 
 #define COMBINE(x, y) x##y
 #define COMBINE2(x, y) COMBINE(x, y)

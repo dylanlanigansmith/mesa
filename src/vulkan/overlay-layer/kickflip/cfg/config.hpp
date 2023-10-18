@@ -48,6 +48,7 @@ struct Config_t {
             bool DrawVisible;
             float Thickness;
             bool Cocks;
+            float DebugDistance;
         } Bones;
         
         bool BombTimer;
@@ -60,6 +61,7 @@ struct Config_t {
         int FPS;
         int NoHook;
         int LaunchMenu;
+        int max_logs;
     } KF;
     
     struct AIM {
@@ -78,6 +80,8 @@ struct Config_t {
         float sens;
         bool log;
         bool body;
+        bool jumping;
+        bool drawFOV;
         struct Weapons{
             bool Rifles;
             bool Pistols;

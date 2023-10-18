@@ -13,7 +13,7 @@ std::optional<int32_t> CSchemaManager::GetSchemaOffsetInternal(const char* modul
        //LOG CLogger::Log("[schemamgr] No type scope found for '{}'.", moduleName);
         return {};
     }
-
+    
     CSchemaClassInfo* classInfo = typeScope->FindDeclaredClass(bindingName);
     if (!classInfo) {
        //LOG CLogger::Log("[schemamgr] No binding named '{}' has been found in module '{}'.", bindingName, moduleName);

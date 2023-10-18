@@ -61,11 +61,11 @@ public:
          if(!m_vecViewOffset)
             return Vector3{};
         Vector3 offset = *(Vector3*)(handle + m_vecViewOffset);
-
+        return offset;
     }
     Vector3 eyePosition(){
 
-        return Util::AddVector3(viewOffset(), origin());
+        return Util::AddVector3(origin(), viewOffset());
     }
     bool defusing(){
         if(!m_bIsDefusing)
@@ -158,7 +158,7 @@ public:
          if(!m_fFlags)
             return 0;
         uint32_t flg = *(uint32_t*)(handle + m_fFlags); //DOESNT WORK!!!
-        return 0;
+        return flg;
     }
     int32_t health(){
             if(!m_iHealth){
@@ -170,6 +170,30 @@ public:
             int32_t hp = *(int32_t*)(handle + m_iHealth);
             return ( (hp >= 0) && (hp <= 100) ) ? hp : -1;
         }
+    uint8_t teamNum(){
+        if(!m_iTeamNum)
+            m_iTeamNum = kf->off->get(xs("C_BaseEntity"), xs("m_iTeamNum"));
+        if(!m_iTeamNum || !validate())
+            return 0;
+        
+        uint8_t team = *(uint8_t*)(handle + m_iTeamNum);
+        return team;
+    }
+    EntitySpottedState_t spotted(){
+            if(!m_entitySpottedState){
+                m_entitySpottedState = kf->off->get(xs("C_CSPlayerPawnBase"), xs("m_entitySpottedState"));
+            }
+            if(!m_entitySpottedState)
+                return EntitySpottedState_t{};
+           
+            EntitySpottedState_t spot = *(EntitySpottedState_t*)(handle + m_entitySpottedState);
+
+            
+
+
+            return spot;
+        }
+
 protected:
     uintptr_t handle;
     bool valid;
@@ -185,6 +209,7 @@ public:
     static uintptr_t m_hOwnerEntity;
     static uintptr_t m_fFlags;
     static uintptr_t m_iHealth;
+    static uintptr_t m_iTeamNum;
     //C_BaseModelEntity
     static uintptr_t m_vecViewOffset;
 
@@ -194,6 +219,7 @@ public:
     static uintptr_t m_bIsDefusing; 
     static uintptr_t m_bHasMovedSinceSpawn;
     static uintptr_t m_angEyeAngles;
+    static uintptr_t m_entitySpottedState;
     //C_CSPlayerPawn
     static uintptr_t m_aimPunchAngle; 
 

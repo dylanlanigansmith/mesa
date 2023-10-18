@@ -1,5 +1,6 @@
 #include "getvar.hpp"
 #include "../globals.hpp"
+#include "../frame.hpp"
  void VarMgr::init(bool dump = false){
       //  get("CCSPlayerController", "m_iPawnHealth", dump);
       //  get("CCSPlayerController", "m_iCompTeammateColor", dump);
@@ -31,7 +32,7 @@
             calls++;
             if(!var.has_value()){
                 if(dump)
-                    Util::ConColorMsg(std::string("No " + clss + "\n").c_str());
+                    kf->Log(std::string("No " + clss + "\n"), LOG_ERROR);
                 return 0;
             }
                 
@@ -42,8 +43,8 @@
                 cache.insert({key, offset});
                 if(dump){
                     std::string msg = std::string(clss + "->" + field + " = " + std::to_string(offset) + " \n");
+                     kf->Log(msg, LOG_INFO);
                     
-                    Util::ConColorMsg(msg.c_str());
                 }
                     
                 return offset;

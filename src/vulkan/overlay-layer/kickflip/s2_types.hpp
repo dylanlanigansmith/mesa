@@ -4,6 +4,16 @@
 //idk about this
 #define ENT_MAX 32 
 
+
+class EntitySpottedState_t /* "server" */
+{
+public:
+   unsigned char pad_0[0x8]; // 0x0 - 0x8
+   bool m_bSpotted; // 0x8 - 0x9
+   unsigned char pad_9[0x3]; // 0x9 - 0xC
+   uint32_t m_bSpottedByMask[2]; // 0xC - 0x14
+   unsigned char pad_14[0x4]; // 0x14 - 0x18
+}; // size - 0x18
 //https://github.com/Omn1z/Counter-Strike2-SDK/blob/main/SDK/Classes.hpp#L27674
 #define IN_ATTACK     (1 << 0)
 #define IN_JUMP       (1 << 1)

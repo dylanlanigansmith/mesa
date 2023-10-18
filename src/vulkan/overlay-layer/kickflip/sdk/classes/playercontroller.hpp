@@ -86,7 +86,16 @@ class PlayerController {
             memcpy(buf, (char*)(name_addr), sizeof(char) * 128);
             return std::string(buf);
         }
+        bool isLocalPlayerController(){
+            if(!m_bIsLocalPlayerController)
+                m_bIsLocalPlayerController = kf->off->get(xs("CBasePlayerController"),xs("m_bIsLocalPlayerController"));
+            if(!m_bIsLocalPlayerController)
+                return true; //this oughta break something
 
+            bool isLPC = *(bool*)(handle + m_bIsLocalPlayerController);
+            return isLPC;
+
+        }
 
 
 
@@ -98,6 +107,18 @@ class PlayerController {
             if (!list_entry)
                 return 0;
             uintptr_t player = *(uintptr_t *)(list_entry + 120 * (i & 0x1FF));
+            if (!player)
+                return 0;
+
+            return player;
+        }
+        static uintptr_t GetPlayerFromHandle(uintptr_t entlist, uintptr_t h) //should pass a ref ORRR just use as constructor
+        {
+            //static PlayerController nullpc = PlayerController{};
+            uintptr_t list_entry = *(uintptr_t *)(entlist + (8 * h + 16));
+            if (!list_entry)
+                return 0;
+            uintptr_t player = *(uintptr_t *)(list_entry + 120 * (h & 0x1FF));
             if (!player)
                 return 0;
 
@@ -134,6 +155,7 @@ class PlayerController {
         static uintptr_t m_bPawnHasDefuser;
         static uintptr_t m_isConnected; //why use such big data type :(
         static uintptr_t m_hPlayerPawn;
+        static uintptr_t m_bIsLocalPlayerController;
         //CCSPlayerController
         static uintptr_t m_sSanitizedPlayerName ;
 

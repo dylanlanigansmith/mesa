@@ -57,13 +57,24 @@ class InputManager {
         input in;
     private:
         void GetInput();
+        void NewGetInput();
+
+       // void ZeroKeys(); //fuck that
         bool supports_key_events(const int &fd);
+        int fallback_mb;
+        int fallback_kb;
+        int event_mb;
+        int event_kb;
+        int found_mb;
+        int found_kb;
     private:
+        void getEventNumbers();
+        std::string getEventName(int fd);
         std::vector<pollfd> poll_fds;
         bool shouldRun;
         std::thread t1;
         std::string error;
-        
+        std::string username;
         bool isInit;
         Display* display;
 };

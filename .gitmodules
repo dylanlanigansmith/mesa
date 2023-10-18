@@ -1,0 +1,3 @@
+[submodule "src/vulkan/overlay-layer/SignatureScanner"]
+	path = src/vulkan/overlay-layer/SignatureScanner
+	url = https://github.com/Sumandora/SignatureScanner

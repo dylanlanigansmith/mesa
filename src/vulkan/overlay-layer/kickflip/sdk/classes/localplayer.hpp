@@ -6,14 +6,19 @@
 class LocalPlayer : public PlayerController { //god i should have made a BasePlayerController Class and inherited 
     public:
         LocalPlayer(moduleptr_t &mod){
-            handle = refreshHandle();
+           
             
             //assuming we are in game god bless us
             client_start = 0;
             client_start = mod->start;
+
+          
+            
+            handle = refreshHandle();
             
             
         }
+        using PlayerController::PlayerController;
         ~LocalPlayer(){
 
         }
@@ -41,18 +46,21 @@ class LocalPlayer : public PlayerController { //god i should have made a BasePla
             return false;
         }
        
-
+        
     private:
+        uintptr_t getOffset(){
+           return kf->LocalPlayerGlobal();
+        }
         uintptr_t refreshHandle()
         {
-            if(!client_start)
+            if(!client_start || !getOffset())
                 return 0;
-            uintptr_t newhandle = *(uintptr_t*)(client_start + LocalPlayerController);
+            uintptr_t newhandle = *(uintptr_t*)(client_start + getOffset());
             if(!newhandle)
                 return 0;
             return newhandle;
         }
-       
+    
     private:
       
 

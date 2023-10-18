@@ -64,9 +64,11 @@ void CGUI::drawESPTab(){
     ImGui::NewLine();
     ImGui::Text("Bones");
     ImGui::Checkbox(xc("Draw For Team###b"), &cfg->settings.ESP.Bones.DrawTeam); ImGui::SameLine(); ImGui::Checkbox(xc("Draw For Enemy###be"), &cfg->settings.ESP.Bones.DrawEnemy);
-     ImGui::Checkbox(xc("Cocks (beta)"), &cfg->settings.ESP.Bones.Cocks);
+    ImGui::Checkbox(xc("Cocks (beta)"), &cfg->settings.ESP.Bones.Cocks);
+    ImGui::SliderFloat(xc("Thickness"), &cfg->settings.ESP.Bones.Thickness, 0.f, 5.f, "%.1f");
+    ImGui::SliderFloat(xc("Debug"), &cfg->settings.ESP.Bones.DebugDistance, 0.f, 5000.f, "%.5f");
     ImGui::Separator();
-    ImGui::SliderInt(xc("Cutoff FPS"), &cfg->settings.ESP.FPSLimit, 80, 250, "%i fps");
+    ImGui::SliderInt(xc("Visuals Cutoff FPS"), &cfg->settings.ESP.FPSLimit, 80, 250, "%i fps");
 }
 
 void CGUI::drawAimTab()
@@ -104,9 +106,9 @@ void CGUI::drawAimTab()
     ImGui::Text("bounds: %f %f",kf->getAim()->getBounds().x, kf->getAim()->getBounds().y);
     ImGui::SliderFloat(xc("XRCS"), &cfg->settings.AIM.punchX, 0.f, 100.f,"%.3f");
     ImGui::SliderFloat(xc("YRCS"), &cfg->settings.AIM.punchY, 0.f, 100.f, "%.3f");
-    ImGui::SliderInt(xc("Step Time"), &cfg->settings.AIM.delay, 0, 1500, "%i");
-    ImGui::SliderInt(xc("Smoothing (no effect)"), &cfg->settings.AIM.smoothing, 0, 100, "%i");
-    ImGui::SliderInt(xc("Max Shift"), &cfg->settings.AIM.max_shift, 5, 100, "%i %% of screen");
+    ImGui::SliderInt(xc("Step Time"), &cfg->settings.AIM.delay, 0, 1000, "%i");
+    
+    ImGui::SliderInt(xc("Max Shift"), &cfg->settings.AIM.max_shift, 1, 100, "%i %% of screen");
     ImGui::SliderInt(xc("Max Dist."), &cfg->settings.AIM.max_dist, 5, 4000, "%i ");
     ImGui::SliderInt(xc("FOV"), &cfg->settings.AIM.fov, 5, 600, xc("%i pixels around xhair"));
     ImGui::Checkbox(xc("Swap Mouse Sidebutton"), &cfg->settings.AIM.mouse4);
@@ -116,12 +118,16 @@ void CGUI::drawAimTab()
         ImGui::SliderInt(xc("Chance"), &cfg->settings.AIM.randombonechance, 1, 100, xc("%i %% bias to body"));
     else
         ImGui::Checkbox(xc("Body"), &cfg->settings.AIM.body);
+     ImGui::Checkbox(xc("Debug"), &cfg->settings.AIM.log);
+     ImGui::Checkbox(xc("Draw FOV"), &cfg->settings.AIM.drawFOV);
+     ImGui::Checkbox(xc("Target Jumpers"), &cfg->settings.AIM.jumping);
     ImGui::NextColumn();
     ImGui::BeginChild("wfilter", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.4f, 19 * 4), true);
     {
         ImGui::Selectable(xc("Rifles/SMGs"), &cfg->settings.AIM.Weapons.Rifles);
         ImGui::Selectable(xc("Shotguns"), &cfg->settings.AIM.Weapons.Shotguns);
         ImGui::Selectable(xc("Pistols"), &cfg->settings.AIM.Weapons.Pistols);
+        ImGui::Selectable(xc("Scoped"), &cfg->settings.AIM.Weapons.Scoped);
     }
     ImGui::EndChild();
      ImGui::Combo(xc("Sensitivity"), &sensSelect, sensOptions, IM_ARRAYSIZE(sensOptions)); 
@@ -137,8 +143,8 @@ void CGUI::drawAimTab()
 
      }
     ImGui::Text("%s -> %0.3f", xc("Mouse Sensitivity"), kf->getAim()->userSens() );
-    ImGui::Text("%s",xc("You have to press lock every time you want it."));
-    ImGui::Text("%s",xc("I haven't test weapon filter yet"));
+    ImGui::Text("%s",xc(""));
+    ImGui::Text("%s",xc("God help you"));
     ImGui::Columns;
 }
 
@@ -151,6 +157,12 @@ void CGUI::drawMainTab()
 void CGUI::drawDevTab()
 {
     ImGui::Text("Logs: ");
+    ImGui::SameLine();
+    if(ImGui::Button("Clear")){
+         debug.clear();
+         kf->logs.clear();
+    }
+     ImGui::Text(kf->debug.c_str());
     for(auto& l : kf->logs){
         ImGui::Text(">%s",l.c_str());
     }
@@ -158,12 +170,15 @@ void CGUI::drawDevTab()
      for(auto& l : debug){
         ImGui::Text("%s", l.c_str());
     }
-    ImGui::Text("arr: %s", cfg->lastError.c_str());
-   
+    ImGui::Separator();
     if(ImGui::Button("Clear")){
          debug.clear();
          kf->logs.clear();
     }
+    ImGui::SliderInt(xc("Max Logs"), &cfg->settings.KF.max_logs, 50, 4000, "%i");
+   // ImGui::Text("cfg: ", cfg->lastError.c_str());
+   
+  
    
 }
 void CGUI::setStyle()

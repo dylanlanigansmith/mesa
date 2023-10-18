@@ -1,28 +1,36 @@
 #include "kickflip/frame.hpp"
 
 
+#define ConColorOffset  0x589310
+#define DevWarningOffset 0x587500
 
-#define ENT_OFFSET 0x351C468
+#define oBoneArray 0x80
+
+/*
+//gamescenenode + 1e0 (modelstate + 0x80)
+#define GameSceneNode 0x488//pawn+0488
+#define CModelState 0x160//gamescenenode + 160
+
+#define ENT_OFFSET 0x3521468 // 48 8B 3D ? ? ? ? 45 89 F4 
 #define HEALTH_OFFSET 0x948
 #define PAWN_OFFSET 0x93c // wrong from here on
 #define TEAM_OFFSET 0x880 // m_iTeamNum 0x537
 
 #define dwSanitizedName 0x790 // 0x7f666efdb38c +0x4
 #define vecOrigin 0x11b4
-#define VIEW_MATRIX 0x371A6C0 //12
+#define VIEW_MATRIX 0x371F6A0 //12 4C 8D 05 ? ? ? ? 48 8B 38 48 8D 0D ? ? ? ?
 
-#define LocalPlayerController 0x366C618 //12
+#define LocalPlayerController 0x03671618 //13 48 83 3D ? ? ? ? ? 0F 95 C0 C3
 #define isDefusing 0x1330 
-#define GameSceneNode 0x488//pawn+0488
-#define CModelState 0x160//gamescenenode + 160
-#define oBoneArray 0x80//gamescenenode + 1e0 (modelstate + 0x80)
 
-#define GlobalPlantedC4 0x37267C0 //48 89 87 ? ? ? ? 48 8D 3D ? ? ? ? E8 ? ? ? ? 4C 89 E7 4C 8B 65 F8 
 
-#define ConColorOffset  0x589310
-#define DevWarningOffset 0x587500
 
-/**
+
+#define GlobalPlantedC4 0x372B7A0 //48 89 87 ? ? ? ? 48 8D 3D ? ? ? ? E8 ? ? ? ? 4C 89 E7 4C 8B 65 F8 
+
+
+
+*
  * 
  * 
  * 

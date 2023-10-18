@@ -233,6 +233,7 @@ void Config::loadConfigFromJSON(Config_t& config) {
     config.ESP.Bones.DrawVisible = js[xs("ESP")][xs("Bones")][xs("DrawVisible")].ToBool();
     config.ESP.Bones.Thickness = js[xs("ESP")][xs("Bones")][xs("Thickness")].ToFloat();
     config.ESP.Bones.Cocks = js[xs("ESP")][xs("Bones")][xs("Cocks")].ToBool();
+    config.ESP.Bones.DebugDistance = 1000.f;
 
     config.ESP.BombTimer = js[xs("ESP")][xs("BombTimer")].ToBool();
     config.ESP.FPSLimit = js[xs("ESP")][xs("FPS Limit")].ToInt();
@@ -242,26 +243,29 @@ void Config::loadConfigFromJSON(Config_t& config) {
     config.KF.FPS = js[xs("KF")][xs("FPS")].ToBool();
     config.KF.NoHook = js[xs("KF")][xs("NoHook")].ToBool();
     config.KF.LaunchMenu = js[xs("KF")][xs("LaunchMenu")].ToBool();
+    config.KF.max_logs = 200;
 
     config.AIM.Enabled = js[xs("AIM")][xs("Enabled")].ToBool();
-    config.AIM.punchX = 92.f;
-    config.AIM.punchY = 92.f;
-    config.AIM.smoothing = 100;
-    config.AIM.delay = 150;
+    config.AIM.punchX = 74.f;
+    config.AIM.punchY = 88.1f;
+    config.AIM.smoothing = 69;
+    config.AIM.delay = 117;
     config.AIM.fov = 120; // / by 2
-    config.AIM.max_shift = 70; // % of window width
-    config.AIM.max_dist = 800;
+    config.AIM.max_shift = 5; // % of window width
+    config.AIM.max_dist = 450;
     config.AIM.randombone = false;
     config.AIM.randombonechance = 50;
     config.AIM.single_target = true;
-    config.AIM.mouse4 = true;
+    config.AIM.mouse4 = false;
     config.AIM.sens = 2.42f;
     config.AIM.Weapons.Pistols = true;
     config.AIM.Weapons.Rifles = true;
     config.AIM.Weapons.Shotguns = false;
     config.AIM.Weapons.Scoped = false;
     config.AIM.body = false;
-     config.AIM.log = false;
+    config.AIM.log = false;
+    config.AIM.jumping = false;
+    config.AIM.drawFOV = false;
     config.VERSION = js[xs("VERSION")].ToString();
 }
 void Config::createJSONFromConfig(const Config_t& config) 
