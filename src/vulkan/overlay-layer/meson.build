@@ -51,6 +51,7 @@ vklayer_files = files(
   'kickflip/cfg/config.cpp',
   'kickflip/GUI/gui.cpp',
   'kickflip/sdk/interface/IEngineClient.cpp',
+  'kickflip/sdk/interface/Source2Client.cpp',
   'kickflip/mouse/mouse.cpp',
   'kickflip/AIM/aim.cpp',
   'kickflip/sdk/classes/classes.cpp',
@@ -58,6 +59,10 @@ vklayer_files = files(
   'SignatureScanner/Source/Patterns/Search.cpp',
   'SignatureScanner/Source/XRef/Constructors.cpp',
   'SignatureScanner/Source/XRef/Search.cpp',
+  'kickflip/hook/Hook.cpp',
+  'kickflip/hook/ForceWrite.cpp',
+  'kickflip/hook/MemoryPage.cpp',
+  'kickflip/hook/Utils.cpp',
   
 )
 #no_override_init_args

@@ -34,8 +34,8 @@
 #include <cstdio>
 #include <cmath>
 #include <iostream>
-
-
+#include <typeinfo>
+#include <iterator> 
 #include <chrono>
 #include <unordered_map>
 #include <functional>
@@ -46,7 +46,7 @@
 #define FOV 90
 #define xc(c) xs(c).c_str()
 
-#define KFVERSION "2.2.0 early"
+#define KFVERSION "2.2.0s"
 
 #define COMBINE(x, y) x##y
 #define COMBINE2(x, y) COMBINE(x, y)

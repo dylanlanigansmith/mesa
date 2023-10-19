@@ -54,6 +54,30 @@ public:
         return yes;
 
     }
+    bool dropped(){
+        if(exists()){
+            if(uintptr_t ownerHandle = hOwnerEntity(); ownerHandle == 0x600ffffffff){
+                return true;
+            }
+        }
+        return false;
+    }
+    uintptr_t getOwnerAddress(uintptr_t entity_list ){
+        if(exists()){
+            //if i wrote a good API this would be GetEntityFromHandle...
+            if(uintptr_t ownerHandle = hOwnerEntity(); ownerHandle > 0xff && ownerHandle < 0xfffffff){
+                 uintptr_t list_entry2 = *(uintptr_t *)(entity_list + 0x8 * ((ownerHandle & 0x7FFF) >> 9) + 16);
+                         if (list_entry2){
+                                 uintptr_t c4Owner = *(uintptr_t *)(list_entry2 + 120 * (ownerHandle & 0x1FF));
+                                 if(c4Owner)
+                                 {
+                                    return c4Owner;
+                                 }
+                         }
+            }
+        }
+        return 0;
+    }
     uintptr_t hOwnerEntity(){
          uintptr_t m_hOwnerEntity = kf->off->get(xs("C_BaseEntity"), xs("m_hOwnerEntity"));
          if(!m_hOwnerEntity || !checkHandle())

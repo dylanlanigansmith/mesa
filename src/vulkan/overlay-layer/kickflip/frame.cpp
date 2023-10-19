@@ -22,11 +22,12 @@ KickFlip::KickFlip(){
    EngineTracePtrOffset = 0;
    ViewMatrixOffset = 0;
    PlantedC4Offset = 0;
-    
+    hasHookedFSN = false;
 }
 KickFlip::~KickFlip(){
     in->Shutdown();
     ok = false;
+    delete FrameStageHook;
     delete mem;
     delete in;
     delete off;

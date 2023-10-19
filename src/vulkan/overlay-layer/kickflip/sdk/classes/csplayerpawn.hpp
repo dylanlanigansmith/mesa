@@ -193,7 +193,13 @@ public:
 
             return spot;
         }
-
+    uintptr_t getWeaponServices(){
+        uintptr_t m_pWeaponServices = kf->off->get(xs("C_BasePlayerPawn"), xs("m_pWeaponServices"));
+        if(!m_pWeaponServices)
+            return 0;
+        
+        return *(uintptr_t*)(handle + m_pWeaponServices);
+    }
 protected:
     uintptr_t handle;
     bool valid;

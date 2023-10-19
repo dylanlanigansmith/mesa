@@ -4,7 +4,7 @@
 
 #include "getvar.hpp"
 #include "interface/IEngineClient.hpp"
-
+#include "interface/Source2Client.hpp"
 
 enum Teams { //https://developer.valvesoftware.com/wiki/Counter_Strike_Global_Offensive.fgd
     NONE = -1,

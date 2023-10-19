@@ -8,6 +8,8 @@
 #include "sdk/sdk.hpp"
 #include "mouse/mouse.hpp"
 #include "AIM/aim.hpp"
+
+#include "hook/DetourHooking.hpp"
 enum{
     LOG_DEBUG = 0,
     LOG_INFO,
@@ -28,6 +30,9 @@ class KickFlip {
         void NewFrame(ImGuiContext* imgui_context, float fps, ImVec2 win_size, ImVec2 win_dim);
         
         mousetrap* GetVMouse() { return (v_mouse->isReady() ? v_mouse : nullptr); }
+
+        DetourHooking::Hook* FrameStageHook;
+        bool hasHookedFSN;
     public:
         bool ok;
         bool menuOpen;
@@ -74,6 +79,12 @@ class KickFlip {
         std::string getLogPrefix(uint8_t type);
         void addLog(std::string log, uint8_t type);
         
+
+        void VirtualInsanity(moduleptr_t &cl);
+        std::string virtual_err;
+        uintptr_t** vtable_ptr;
+        uintptr_t* modifiedVTable;
+        uintptr_t oldFunctionPtr;
     private:
         AIM* aim;
         mousetrap* v_mouse; 
@@ -151,6 +162,13 @@ class KickFlip {
                 
             return 0x03554610; //48 8D 15 ? ? ? ? 8B 02 83 E8 01  
             //.text:0000000000EB3D50 48 8D 15 F9 A6 69 02  lea     rdx, Weapon_c4 //if 48 8D 15 then res = +3 
+        }
+        uintptr_t GameRules(){
+            if(!foundOffsets)
+                SigScan();
+           
+                
+            return 0x3691748;
         }
 
         

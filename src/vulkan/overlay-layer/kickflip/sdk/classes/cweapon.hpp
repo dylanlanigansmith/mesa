@@ -21,10 +21,106 @@ class CWeapon : public CBase {
         m_Item = 0x50; //surely this is fine
         if(!valid || !m_iItemDefinitionIndex || !m_AttributeManager)
             return 0;
-        itemIndex = *(uint16_t *)(handle + m_AttributeManager + m_Item + m_iItemDefinitionIndex);
-        if(itemIndex > 600 || !itemIndex)
+        uint16_t nitemIndex = *(uint16_t *)(handle + m_AttributeManager + m_Item + m_iItemDefinitionIndex);
+        if(nitemIndex > 600 || !nitemIndex)
             return 0;
-        return itemIndex;
+        return nitemIndex;
+    }
+    void setItemDefinitionIndex(uint16_t idx){
+        if(!m_iItemDefinitionIndex || !m_AttributeManager){
+            m_iItemDefinitionIndex = kf->off->get(xs("C_EconItemView"), xs("m_iItemDefinitionIndex"), false);
+            m_AttributeManager = kf->off->get(xs("C_EconEntity"), xs("m_AttributeManager"), false);
+        }
+        m_Item = 0x50; //surely this is fine
+        if(!valid || !m_iItemDefinitionIndex || !m_AttributeManager)
+            return;
+        *(uint16_t *)(handle + m_AttributeManager + m_Item + m_iItemDefinitionIndex) = idx; 
+       
+    }
+     void setSteamID(uint32_t id){
+        if( !m_AttributeManager){
+           
+            m_AttributeManager = kf->off->get(xs("C_EconEntity"), xs("m_AttributeManager"), false);
+        }
+        uintptr_t  m_iAccountID = kf->off->get(xs("C_EconItemView"), xs("m_iAccountID"), false);
+        m_Item = 0x50; //surely this is fine
+        if(!valid  || !m_AttributeManager)
+            return;
+        *(uint16_t *)(handle + m_AttributeManager + m_Item + m_iAccountID) = id; //m_iAccountID
+       
+    }
+    void setCustomName(const std::string& s){
+        if(!m_iItemDefinitionIndex || !m_AttributeManager){
+            m_iItemDefinitionIndex = kf->off->get(xs("C_EconItemView"), xs("m_iItemDefinitionIndex"), false);
+            m_AttributeManager = kf->off->get(xs("C_EconEntity"), xs("m_AttributeManager"), false);
+        }
+        m_Item = 0x50; //surely this is fine
+         uintptr_t m_szCustomName = kf->off->get(xs("C_EconItemView"), xs("m_szCustomName"));
+         uintptr_t m_szCustomNameOverride = kf->off->get(xs("C_EconItemView"), xs("m_szCustomNameOverride")); //char[161]
+
+         char name[161] = {"kickflipped"};
+        if(!valid || !m_iItemDefinitionIndex || !m_AttributeManager || ! m_szCustomNameOverride)
+            return;
+        memcpy( (char*)(handle + m_AttributeManager + m_Item + m_szCustomNameOverride), name, sizeof(char) * 161);
+        
+       
+    }
+    void setItemIDHigh(){
+         if(!m_iItemDefinitionIndex || !m_AttributeManager){
+            m_iItemDefinitionIndex = kf->off->get(xs("C_EconItemView"), xs("m_iItemDefinitionIndex"), false);
+            m_AttributeManager = kf->off->get(xs("C_EconEntity"), xs("m_AttributeManager"), false);
+        }
+        m_Item = 0x50; //surely this is fine
+        if(!valid || !m_iItemDefinitionIndex || !m_AttributeManager)
+            return;
+      
+        uintptr_t m_iItemIDHigh= kf->off->get(xs("C_EconItemView"), xs("m_iItemIDHigh"));
+        uintptr_t m_iItemIDLow = kf->off->get(xs("C_EconItemView"), xs("m_iItemIDLow"));
+        uintptr_t m_iItemID = kf->off->get(xs("C_EconItemView"), xs("m_iItemID"));
+       // kf->Log("set high");
+        *(uint32_t *)(handle + m_AttributeManager + m_Item + m_iItemIDHigh) = -1;
+        *(uint32_t *)(handle + m_AttributeManager + m_Item + m_iItemIDLow) = -1;
+       // *(uint32_t *)(handle + m_AttributeManager + m_Item + m_iItemID) = -1;
+       
+    }
+    int32_t getItemIDHigh(){
+         if(!m_iItemDefinitionIndex || !m_AttributeManager){
+            m_iItemDefinitionIndex = kf->off->get(xs("C_EconItemView"), xs("m_iItemDefinitionIndex"), false);
+            m_AttributeManager = kf->off->get(xs("C_EconEntity"), xs("m_AttributeManager"), false);
+        }
+        m_Item = 0x50; //surely this is fine
+        if(!valid || !m_iItemDefinitionIndex || !m_AttributeManager)
+            return;
+      
+        uintptr_t m_iItemIDHigh= kf->off->get(xs("C_EconItemView"), xs("m_iItemIDHigh"));
+        uintptr_t m_iItemIDLow = kf->off->get(xs("C_EconItemView"), xs("m_iItemIDLow"));
+        int32_t neg = -1;
+      
+        return *(int32_t *)(handle + m_AttributeManager + m_Item + m_iItemIDHigh) ;
+        
+       
+    }
+    void setFallBackPaintKit(int32_t pk, int32_t seed, float wear){
+        uintptr_t m_nFallbackPaintKit = kf->off->get(xs("C_EconEntity"), xs("m_nFallbackPaintKit"));
+        uintptr_t  m_nFallbackSeed = kf->off->get(xs("C_EconEntity"), xs("m_nFallbackSeed"));
+        uintptr_t m_flFallbackWear = kf->off->get(xs("C_EconEntity"), xs("m_flFallbackWear"));
+        if(m_nFallbackPaintKit && m_flFallbackWear && m_nFallbackSeed){
+            *(int32_t*)(handle + m_nFallbackPaintKit) = pk;
+            *(int32_t*)(handle + m_nFallbackSeed) = seed;
+            *(float*)(handle + m_flFallbackWear) = wear;
+           
+
+        }
+    }
+    int32_t getFallBackPaintKit(){
+        uintptr_t m_nFallbackPaintKit = kf->off->get(xs("C_EconEntity"), xs("m_nFallbackPaintKit"));
+        uintptr_t  m_nFallbackSeed = kf->off->get(xs("C_EconEntity"), xs("m_nFallbackSeed"));
+        uintptr_t m_flFallbackWear = kf->off->get(xs("C_EconEntity"), xs("m_flFallbackWear"));
+        if(m_nFallbackPaintKit && m_flFallbackWear && m_nFallbackSeed){
+             return *(int32_t*)(handle + m_nFallbackPaintKit);
+          
+
+        }
     }
     std::string name(){
         checkIndex();
@@ -116,6 +212,22 @@ class CWeapon : public CBase {
        
         return WeaponType::OTHER;
     }
+    static uintptr_t getAddressFromHandle(uintptr_t entity_list, int32_t h){
+       
+           
+            if(h > 0){
+                        uintptr_t list_entry2 = *(uintptr_t *)(entity_list + 0x8 * ((h & 0x7FFF) >> 9) + 16);
+                         if (list_entry2){
+                                 uintptr_t weaponent = *(uintptr_t *)(list_entry2 + 120 * (h & 0x1FF));
+                                 if(weaponent)
+                                 {
+                                    return weaponent;
+                                 }
+                         }
+            }
+        
+        return 0;
+    }
     private:
         uint16_t itemIndex; 
         void checkIndex(){
@@ -132,7 +244,7 @@ class CWeapon : public CBase {
         static uintptr_t m_iItemDefinitionIndex; 
         static uintptr_t m_AttributeManager; 
 
-    private:
+   
     
     static std::string WeaponNameFromID(uint16_t id)
     {
