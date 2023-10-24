@@ -12,7 +12,7 @@ enum WeaponType{
 class CWeapon : public CBase {
     public:
         using CBase::CBase; //maybe just call this and 0 out local vars
-
+  
     uint16_t itemDefinitionIndex(){
         if(!m_iItemDefinitionIndex || !m_AttributeManager){
             m_iItemDefinitionIndex = kf->off->get(xs("C_EconItemView"), xs("m_iItemDefinitionIndex"), false);
@@ -24,16 +24,20 @@ class CWeapon : public CBase {
         uint16_t nitemIndex = *(uint16_t *)(handle + m_AttributeManager + m_Item + m_iItemDefinitionIndex);
         if(nitemIndex > 600 || !nitemIndex)
             return 0;
+
+        
         return nitemIndex;
     }
+
     void setItemDefinitionIndex(uint16_t idx){
         if(!m_iItemDefinitionIndex || !m_AttributeManager){
             m_iItemDefinitionIndex = kf->off->get(xs("C_EconItemView"), xs("m_iItemDefinitionIndex"), false);
             m_AttributeManager = kf->off->get(xs("C_EconEntity"), xs("m_AttributeManager"), false);
         }
         m_Item = 0x50; //surely this is fine
-        if(!valid || !m_iItemDefinitionIndex || !m_AttributeManager)
+        if( !m_iItemDefinitionIndex || !m_AttributeManager)
             return;
+        
         *(uint16_t *)(handle + m_AttributeManager + m_Item + m_iItemDefinitionIndex) = idx; 
        
     }
@@ -46,40 +50,47 @@ class CWeapon : public CBase {
         m_Item = 0x50; //surely this is fine
         if(!valid  || !m_AttributeManager)
             return;
-        *(uint16_t *)(handle + m_AttributeManager + m_Item + m_iAccountID) = id; //m_iAccountID
+        *(uint32_t *)(handle + m_AttributeManager + m_Item + m_iAccountID) = id; //m_iAccountID
        
     }
     void setCustomName(const std::string& s){
-        if(!m_iItemDefinitionIndex || !m_AttributeManager){
-            m_iItemDefinitionIndex = kf->off->get(xs("C_EconItemView"), xs("m_iItemDefinitionIndex"), false);
-            m_AttributeManager = kf->off->get(xs("C_EconEntity"), xs("m_AttributeManager"), false);
-        }
+      
         m_Item = 0x50; //surely this is fine
          uintptr_t m_szCustomName = kf->off->get(xs("C_EconItemView"), xs("m_szCustomName"));
          uintptr_t m_szCustomNameOverride = kf->off->get(xs("C_EconItemView"), xs("m_szCustomNameOverride")); //char[161]
-
-         char name[161] = {"kickflipped"};
-        if(!valid || !m_iItemDefinitionIndex || !m_AttributeManager || ! m_szCustomNameOverride)
+        std::string name = xs("kickflipped");
+        if(s.length() < 160)
+            name = s;
+        
+        if(!valid || !m_AttributeManager || !m_szCustomNameOverride)
             return;
-        memcpy( (char*)(handle + m_AttributeManager + m_Item + m_szCustomNameOverride), name, sizeof(char) * 161);
+        memcpy( (char*)(handle + m_AttributeManager + m_Item + m_szCustomNameOverride), name.c_str(), sizeof(char) * 161);
         
        
     }
     void setItemIDHigh(){
-         if(!m_iItemDefinitionIndex || !m_AttributeManager){
-            m_iItemDefinitionIndex = kf->off->get(xs("C_EconItemView"), xs("m_iItemDefinitionIndex"), false);
+         if( !m_AttributeManager){
+          
             m_AttributeManager = kf->off->get(xs("C_EconEntity"), xs("m_AttributeManager"), false);
         }
         m_Item = 0x50; //surely this is fine
-        if(!valid || !m_iItemDefinitionIndex || !m_AttributeManager)
-            return;
       
-        uintptr_t m_iItemIDHigh= kf->off->get(xs("C_EconItemView"), xs("m_iItemIDHigh"));
-        uintptr_t m_iItemIDLow = kf->off->get(xs("C_EconItemView"), xs("m_iItemIDLow"));
+      
+        uintptr_t m_iItemIDHigh= kf->off->get(xs("C_EconItemView"), xs("m_iItemIDHigh"), true);
+        uintptr_t m_iItemIDLow = kf->off->get(xs("C_EconItemView"), xs("m_iItemIDLow"), true);
         uintptr_t m_iItemID = kf->off->get(xs("C_EconItemView"), xs("m_iItemID"));
-       // kf->Log("set high");
+       
+
+         if(!valid || !m_AttributeManager || !m_iItemIDLow || !m_iItemIDHigh)
+            return;
+        *(int32_t *)(handle + m_AttributeManager + m_Item + m_iItemIDHigh) = -1;
+        *(int32_t *)(handle + m_AttributeManager + m_Item + m_iItemIDLow) = -1;
+       /*  *(uint32_t *)(handle + m_AttributeManager + m_iItemIDLow) = -1;
+          *(uint32_t *)(handle + m_iItemIDLow) = -1;
         *(uint32_t *)(handle + m_AttributeManager + m_Item + m_iItemIDHigh) = -1;
-        *(uint32_t *)(handle + m_AttributeManager + m_Item + m_iItemIDLow) = -1;
+         *(uint32_t *)(handle + m_AttributeManager + m_iItemIDHigh) = -1;
+          *(uint32_t *)(handle + m_iItemIDHigh) = -1; */ 
+       //  kf->Log((handle + m_AttributeManager), "m_item");
        // *(uint32_t *)(handle + m_AttributeManager + m_Item + m_iItemID) = -1;
        
     }
@@ -94,22 +105,25 @@ class CWeapon : public CBase {
       
         uintptr_t m_iItemIDHigh= kf->off->get(xs("C_EconItemView"), xs("m_iItemIDHigh"));
         uintptr_t m_iItemIDLow = kf->off->get(xs("C_EconItemView"), xs("m_iItemIDLow"));
-        int32_t neg = -1;
+     
       
         return *(int32_t *)(handle + m_AttributeManager + m_Item + m_iItemIDHigh) ;
         
        
     }
     void setFallBackPaintKit(int32_t pk, int32_t seed, float wear){
-        uintptr_t m_nFallbackPaintKit = kf->off->get(xs("C_EconEntity"), xs("m_nFallbackPaintKit"));
-        uintptr_t  m_nFallbackSeed = kf->off->get(xs("C_EconEntity"), xs("m_nFallbackSeed"));
-        uintptr_t m_flFallbackWear = kf->off->get(xs("C_EconEntity"), xs("m_flFallbackWear"));
+        uintptr_t m_nFallbackPaintKit = kf->off->get(xs("C_EconEntity"), xs("m_nFallbackPaintKit"), true);
+        uintptr_t  m_nFallbackSeed = kf->off->get(xs("C_EconEntity"), xs("m_nFallbackSeed"), true);
+        uintptr_t m_flFallbackWear = kf->off->get(xs("C_EconEntity"), xs("m_flFallbackWear"), true); //m_bAttributesInitialized 
+        uintptr_t m_bAttributesInitialized = kf->off->get(xs("C_EconEntity"), xs("m_bAttributesInitialized"));
         if(m_nFallbackPaintKit && m_flFallbackWear && m_nFallbackSeed){
+        // kf->Log((handle + m_nFallbackPaintKit), " set pk");
+          // *(bool*)(handle + m_bAttributesInitialized) = false;
             *(int32_t*)(handle + m_nFallbackPaintKit) = pk;
             *(int32_t*)(handle + m_nFallbackSeed) = seed;
             *(float*)(handle + m_flFallbackWear) = wear;
            
-
+           // kf->Log("set");
         }
     }
     int32_t getFallBackPaintKit(){
@@ -121,6 +135,18 @@ class CWeapon : public CBase {
           
 
         }
+    }
+    bool prevOwner(){
+        uintptr_t m_hPrevOwner = kf->off->get(xs("C_CSWeaponBase"), xs("m_hPrevOwner"));
+        if(m_hPrevOwner){
+            uint32_t hp = *( uint32_t*)(handle + m_hPrevOwner);
+            
+            if(hp == 0xffffffff)
+                return false;
+            else   
+                return true;
+        }
+        return false;
     }
     std::string name(){
         checkIndex();
@@ -200,6 +226,39 @@ class CWeapon : public CBase {
             return false;
         }
     }
+    bool IsKnife()
+    {
+        int idx = itemDefinitionIndex();
+        switch (idx)
+        {
+        case WEAPON_KNIFE1:
+        case WEAPON_KNIFE:
+        case WEAPON_KNIFE2:
+        case WEAPON_KNIFE_BUTTERFLY:
+        case WEAPON_KNIFECSS:
+        case WEAPON_KNIFEKARAM:
+        case WEAPON_KNIFEM9:
+        case WEAPON_KNIFEBAYONET:
+        case WEAPON_KNIFEGUT:
+        case WEAPON_KNIFEFLIP:
+        case WEAPON_KNIFE_CANIS:
+        case WEAPON_KNIFE_CORD:
+        case WEAPON_KNIFE_FALCHION_ADVANCED:
+        case WEAPON_KNIFE_OUTDOOR:
+        case WEAPON_KNIFE_SURVIVAL_BOWIE:
+        case WEAPON_KNIFE_GHOST:
+        case WEAPON_KNIFE_GYPSY_JACKKNIFE:
+        case WEAPON_KNIFE_PUSH:
+        case WEAPON_KNIFE_SKELETON:
+        case WEAPON_KNIFE_STILETTO:
+        case WEAPON_KNIFE_T:
+        case WEAPON_KNIFE_URSUS:
+        case WEAPON_KNIFE_WIDOWMAKER:
+            return true;
+        default:
+            return false;
+        }
+    }
     WeaponType type(){
         if(IsScopedRifle())
             return WeaponType::SCOPED;
@@ -233,10 +292,10 @@ class CWeapon : public CBase {
         void checkIndex(){
             if(itemIndex > 0 && valid)
                 return;
-            itemIndex = 0;
+            itemIndex = itemDefinitionIndex();
             if(!validate())
                 return;
-            itemDefinitionIndex();
+            
 
         }
     public:
@@ -433,3 +492,32 @@ class CWeapon : public CBase {
         }
     }
 };
+
+//VDATA
+    //weapons/models/knife/knife_butterfly/weapon_knife_butterfly.vmdl_c
+                     //   const char id[4] = { "507"};
+                     //   const char name[32] = { "weapon_knifekaram"};
+                     //   uintptr_t VInfo = *(uintptr_t*)(addy + 0x4D8);
+                     //   memcpy((void *)(VInfo + 0x250), bknife, sizeof(char) * strlen(bknife) ); 
+                    //   memcpy((void *)(VInfo + 0x330), bknife, sizeof(char) * strlen(bknife) ); 
+                    //    memcpy((void *)(VInfo + 0x410), bknife, sizeof(char) * strlen(bknife) ); 
+                     //   memcpy((void *)(VInfo + 0x30), bknife, sizeof(char) * strlen(bknife) ); 
+                    //    uintptr_t id_name = *(uintptr_t*)(VInfo + 0x18);
+                     //   uintptr_t name_name = *(uintptr_t*)(VInfo + 0xC18);
+                    //    uintptr_t id_id = *(uintptr_t*)(VInfo + 0x10);
+                    //    memcpy((void *)(id_name), name, sizeof(char) * 32 ); 
+                     //   memcpy((void *)(id_id), id, sizeof(char) * 4 ); 
+                    //    memcpy((void *)(name_name), name, sizeof(char) * 32); 
+                            //ent + body comp 0x30 + animctl + use client etc
+                        //viewmodel 0x7fe86d024000
+                        //(viewmodel + bodycomponent) + 0x268 = model name char* 
+                        //knife 0x7fe85b3f4800 + m_animationController 0x498 -> + use client side 0x1338
+                        // ^ + 0x458 anim related & changing
+
+                        //(weapon + 4D8) + 0x30 = worldmodel name char[161]
+                        //(weapon + 4D8) + 0x250 = viewmodel name char[161]
+                        //(weapon + 4D8) + 0x330 = playermodel name char[161]
+                         //(weapon + 4D8) + 0x410 = worlddropped model name char[161]
+                          //(weapon + 4D8) + 0xC18 = item name char* 
+                          //(weapon + 4D8) + 0x18 = defidex name char*
+                          //(weapon + 4D8) + 0x10 = defidex ID char* 

@@ -23,11 +23,14 @@ KickFlip::KickFlip(){
    ViewMatrixOffset = 0;
    PlantedC4Offset = 0;
     hasHookedFSN = false;
+    sig_attempts = 0;
 }
 KickFlip::~KickFlip(){
     in->Shutdown();
     ok = false;
-    delete FrameStageHook;
+   // delete FrameStageHook;
+   CheckVTablesHook->disable();
+    delete CheckVTablesHook;
     delete mem;
     delete in;
     delete off;
@@ -118,7 +121,16 @@ void KickFlip::Log(int log, std::string msg,  uint8_t type = LOG_DEBUG){
 
     addLog(fmt, type);
 }
+void KickFlip::Log(uint32_t log, std::string msg,  uint8_t type = LOG_DEBUG){
+    #ifndef VERBOSE_LOGGING
+                return;
+    #endif
+    char buf[128];
+    sprintf(buf, ": %i", log);
+    std::string fmt =  msg + buf;
 
+    addLog(fmt, type);
+}
 
 void KickFlip::Log(std::string msg, QAngle ang, uint8_t type = LOG_DEBUG){
     #ifndef VERBOSE_LOGGING
@@ -154,3 +166,32 @@ std::string KickFlip::GetOffsets(std::string origin, std::string clss, std::stri
 
 }
 
+uintptr_t KickFlip::getFunction(Funcs f)
+{
+     auto &cl = kf->GetMem()->GetModule(CLIENT_LIBX);
+     if(!cl)
+        return 0;
+    uintptr_t client_start = cl->start;
+    switch(f)
+    {
+        case SetMeshGroupMask:
+            return client_start + 0x0B526C0;
+        case CreateSharedObject:
+            return client_start + 0x011D0CE0;
+        case GetInvManager:
+          return client_start + 0x00ACDE90;
+        case SetDynamicAttributeValueUint:
+            return client_start + 0x11ED820;
+        case GetGameCoordinatorSystem:
+            return client_start + 0x011DD680;
+        case FindSharedObjectCache:
+            return client_start + 0x2CC0580;
+        case CreateTypeCache:
+            return client_start + 0x02CD2330; //problematic
+        default:
+            Log("getFunc error");
+            return 0;
+
+    }
+    return 0;
+}

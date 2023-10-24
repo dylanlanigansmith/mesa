@@ -267,6 +267,8 @@ void Config::loadConfigFromJSON(Config_t& config) {
     config.AIM.jumping = false;
     config.AIM.drawFOV = false;
     config.VERSION = js[xs("VERSION")].ToString();
+
+    config.Skins.knife = KnifeGUI::karam;
 }
 void Config::createJSONFromConfig(const Config_t& config) 
 {

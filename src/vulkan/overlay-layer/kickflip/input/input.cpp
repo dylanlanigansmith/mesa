@@ -364,7 +364,8 @@ void InputManager::NewGetInput(){
    long ev_m = fallback_mb;
    const std::string eventPathStart = "/dev/input/event";
 
-
+//https://www.unknowncheats.me/forum/3855779-post889.html
+//https://www.unknowncheats.me/forum/3883841-post1695.html
 #ifdef USE_ENV
    char* num_k = getenv("KF_KBEV");
    

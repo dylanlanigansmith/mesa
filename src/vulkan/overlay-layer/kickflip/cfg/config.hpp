@@ -9,6 +9,16 @@
 using namespace json;
 
 struct Config_t;
+enum KnifeGUI{
+    m9 = 0,
+    karam = 1,
+    butt,
+    flip,
+    gut,
+    talon,
+    buttplug,
+};
+
 
 
 struct Config_t {
@@ -54,7 +64,9 @@ struct Config_t {
         bool BombTimer;
         int FPSLimit;
     } ESP;
-
+    struct Skins{
+            int knife;
+        }Skins;
     struct KF {
         int Debug;
         int MenuKey;

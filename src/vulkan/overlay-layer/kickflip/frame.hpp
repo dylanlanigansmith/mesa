@@ -17,6 +17,48 @@ enum{
 };
 #define MAX_LOGS cfg->settings.KF.max_logs
 
+enum Funcs{
+    SetMeshGroupMask = 0,
+    CreateSharedObject,
+    GetInvManager,
+    SetDynamicAttributeValueUint,
+    GetGameCoordinatorSystem,
+    FindSharedObjectCache,
+    CreateTypeCache,
+
+};
+//CALL_VIRTUAL(base, retType, idx, ...) 
+// * For inv change:
+  
+ // SET_MESH_GROUP_MASK, E8 ? ? ? ? 4C 89 EF E8 ? ? ? ? 41 89 C6  //0x0B526C0
+ //__int64 __fastcall Set_Mesh_Group_Mask(__int64, __int64)
+typedef void  __attribute__((fastcall)) (*SetMeshGroupMaskFn)(uintptr_t, uintptr_t);
+ // SetMeshGroupMaskFn SetMeshGroupMask = (SetMeshGroupMaskFn)(cl->start + 0x0B526C0);
+
+ //CREATE_SHARED_OBJECT_SUBCLASS_ECON_ITEM  55 BF ? ? ? ? 48 89 E5 E8 ? ? ? ? 48 8D 15 ? ? ? ? 48 8D 8A ? ? ? ? 
+//0x011D0CE0 CreateSharedObjectSubclassEconItem   __int64 CreateSharedObjectSubclassEconItem() Vtable 
+typedef int64_t  (*CreateSharedObjectSubclassEconItemFn)();
+
+//GetInventoryManager E8 ? ? ? ? 8B 4D E0 
+//0x00ACDE90 ; uintptr_t *GET_INVENTORY_MANAGER()
+typedef uintptr_t* (*GetInventoryManagerFn)();
+
+//SetDynamicAttributeValueUint 
+//0x11ED820 ; void __fastcall SetDynamicAttributeItemUint2_0(__int64, __int64, _DWORD *)
+//E9 ? ? ? ? 66 90 55 48 89 E5 53 48 89 FB 48 83 EC 08 48 89 37 //48 89 F7 48 89 D6 48 89 CA E9 ? ? ? ? 66 90 55 48 89 E5 53 
+
+typedef void __attribute__((fastcall))  (*SetDynamicAttributeItemUintFn)(int64_t, int64_t, int32_t);
+
+
+//0x011DD680 GetGameCoordinatorSystem proc  // E8 ? ? ? ? 48 85 C0 74 0F 4C 89 E6 
+typedef uintptr_t* (*GGetGameCoordinatorSystemFn)(); 
+
+
+//__int64 __fastcall FindSharedObjectCache(__int64 a1, __int64 a2, __int64 a3, char a4) E8 ? ? ? ? 49 89 C5 48 85 C0 74 0E
+typedef uintptr_t __attribute__((fastcall))  (*FindSharedObjectCacheFn)(uintptr_t a1, int64_t, int64_t, char); //0x2CC0580
+
+//0x02CD2330 ; __int64 __fastcall SortofCreateTypeCache(__int64, unsigned int)
+typedef uintptr_t __attribute__((fastcall))  (*CreateTypeCacheFn)(uintptr_t a1, uint32_t); // E8 ? ? ? ? 48 89 C7 48 8B 07 4C 89 E6 
 
 class KickFlip {
     friend CGUI;
@@ -32,6 +74,9 @@ class KickFlip {
         mousetrap* GetVMouse() { return (v_mouse->isReady() ? v_mouse : nullptr); }
 
         DetourHooking::Hook* FrameStageHook;
+        DetourHooking::Hook* CheckVTablesHook;
+        DetourHooking::Hook* DLLStatusHook;
+        DetourHooking::Hook* UtilCVarHook;
         bool hasHookedFSN;
     public:
         bool ok;
@@ -45,7 +90,8 @@ class KickFlip {
         void Log(std::string msg, Vector3 ang, uint8_t type = LOG_DEBUG);
 
         void Log(int num, std::string msg, uint8_t type = LOG_DEBUG);
-
+        void Log(uint32_t num, std::string msg, uint8_t type = LOG_DEBUG);
+        uintptr_t getFunction(Funcs f);
         void LogBone(std::string msg, float dist){
 
             #ifdef LOG_BONES
@@ -78,9 +124,10 @@ class KickFlip {
     private:
         std::string getLogPrefix(uint8_t type);
         void addLog(std::string log, uint8_t type);
-        
-
-        void VirtualInsanity(moduleptr_t &cl);
+    public:  
+        void UnVirtualInsanity(moduleptr_t &cl, int mode);
+    private:
+       void VirtualInsanity(moduleptr_t &cl);
         std::string virtual_err;
         uintptr_t** vtable_ptr;
         uintptr_t* modifiedVTable;
@@ -107,7 +154,12 @@ class KickFlip {
 
         uintptr_t TraceShapeOffset;
         uintptr_t EngineTracePtrOffset;
+        uintptr_t SetModelFnOffset;
+        uintptr_t WeaponC4Offset;
+        uintptr_t SetMeshOffset;
+        uintptr_t VMTOffset;
         bool foundOffsets;
+        int sig_attempts;
 
         void SigScan();
 
@@ -160,15 +212,35 @@ class KickFlip {
                 SigScan();
            
                 
-            return 0x03554610; //48 8D 15 ? ? ? ? 8B 02 83 E8 01  
-            //.text:0000000000EB3D50 48 8D 15 F9 A6 69 02  lea     rdx, Weapon_c4 //if 48 8D 15 then res = +3 
+            return WeaponC4Offset; 
         }
         uintptr_t GameRules(){
             if(!foundOffsets)
                 SigScan();
            
+            Log(xs("unimplemented: GameRules"));
+            return -1;
+        }
+        uintptr_t SetModel(){
+            if(!foundOffsets)
+                SigScan();
+           
                 
-            return 0x3691748;
+            return SetModelFnOffset;
+        }
+         uintptr_t VMTCheck(){
+            if(!foundOffsets)
+                SigScan();
+           
+            
+            return VMTOffset;
+        }
+           uintptr_t SetMesh(){
+            if(!foundOffsets)
+                SigScan();
+           
+                
+            return SetMeshOffset;
         }
 
         

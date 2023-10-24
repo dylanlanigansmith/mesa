@@ -4,6 +4,8 @@
 const char* colorOptions[] = { "---", "T", "CT", "Defusing", "Text" };
 
 const char* sensOptions[] = { "2.42", "0.6", "0.75"};
+
+const char* knifenames[] = {"m9", "karam","bf","fl","gt","tal","buttplug"};
 void CGUI::drawTabBar(const char* name, int idx)
 {
     bool ChangedStyle = false;
@@ -152,7 +154,7 @@ void CGUI::drawMainTab()
 {
     ImGui::Text("Welcome to Kickflip ");
     ImGui::Checkbox(xc("Open Menu On Launch"), (bool*)&cfg->settings.KF.LaunchMenu);
-    
+     ImGui::Combo("knif", &cfg->settings.Skins.knife, knifenames, IM_ARRAYSIZE(knifenames)); 
 }
 void CGUI::drawDevTab()
 {

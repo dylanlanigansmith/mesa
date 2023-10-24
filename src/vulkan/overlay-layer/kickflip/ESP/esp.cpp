@@ -28,6 +28,7 @@ void ESP::DrawBones(uintptr_t ptrpawn, Vector2 bounds, const view_matrix_t& matr
    BoneArray bones = BoneArray(pawn.bones());
    if(!bones.validate())
       return;
+//https://www.unknowncheats.me/forum/3882591-post1663.html
 
    std::unordered_map<Bones::BONE, Vector3> skeleton;
  

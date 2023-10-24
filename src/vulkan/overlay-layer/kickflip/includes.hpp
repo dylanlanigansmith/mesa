@@ -42,11 +42,11 @@
 
 #include "xorstr.hpp"
 
-
+//#define DEVTOOLS
 #define FOV 90
 #define xc(c) xs(c).c_str()
 
-#define KFVERSION "2.2.0s"
+#define KFVERSION "2.2.2"
 
 #define COMBINE(x, y) x##y
 #define COMBINE2(x, y) COMBINE(x, y)

@@ -3,7 +3,7 @@
 #include "schemamgr.hpp"
 #include "schemasystem.hpp"
 #include "../frame.hpp"
-//#define DEVTOOLS
+
  //DevTools::DumpToFile("/home/dylan/Desktop/cs2clientft13ALL.txt");
 #ifdef DEVTOOLS
 #define HEX(n) std::hex << n << std::dec
